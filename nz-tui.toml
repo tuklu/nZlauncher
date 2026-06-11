@@ -1,0 +1,12 @@
+# nZlauncher TUI theme — lives at ~/.config/neZha/theme/nz-tui.toml
+# Colors: ANSI index ("0"-"15", follows your terminal theme),
+# 256-palette ("212"), or hex ("#89b4fa"). Empty = terminal default.
+
+accent = "4"             # prompt icon, cursor, selection marker
+text = ""                # result text (empty = terminal foreground)
+muted = "8"              # placeholder, footer, badges
+border = "8"             # search box border
+selection_fg = "0"       # selected row text
+selection_bg = "4"       # selected row background
+prompt_icon = "󰍉"
+placeholder_text = "Search anything…"

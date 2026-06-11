@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -11,17 +12,7 @@ import (
 )
 
 // The TUI face: bubbletea, engine called in-process on every keystroke.
-// ANSI palette colors so the terminal theme stays in charge.
-var (
-	accent   = lipgloss.Color("4")
-	dim      = lipgloss.Color("8")
-	stPrompt = lipgloss.NewStyle().Foreground(accent).Bold(true)
-	stCursor = lipgloss.NewStyle().Foreground(accent)
-	stDim    = lipgloss.NewStyle().Foreground(dim)
-	stSel    = lipgloss.NewStyle().Bold(true)
-	stMarker = lipgloss.NewStyle().Foreground(accent).Bold(true)
-)
-
+// Look is driven by ~/.config/neZha/theme/nz-tui.toml.
 type tuiModel struct {
 	query   string
 	actions []Action
@@ -29,10 +20,11 @@ type tuiModel struct {
 	offset  int
 	width   int
 	height  int
+	st      tuiStyles
 }
 
 func runTUI(initial string) error {
-	m := &tuiModel{query: initial, width: 80, height: 14}
+	m := &tuiModel{query: initial, width: 80, height: 16, st: buildStyles(loadTheme())}
 	m.refresh()
 	_, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
 	return err
@@ -95,7 +87,7 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *tuiModel) visibleRows() int {
-	rows := m.height - 3
+	rows := m.height - 6 // input box (3) + blank (1) + footer (2)
 	if rows < 1 {
 		rows = 1
 	}
@@ -114,10 +106,25 @@ func (m *tuiModel) clamp() {
 
 func (m *tuiModel) View() string {
 	var b strings.Builder
-	b.WriteString(" " + stPrompt.Render("❯ ") + m.query + stCursor.Render("█") + "\n\n")
+	w := m.width - 2
+
+	// search box
+	content := m.st.cursor.Render(m.st.promptIcon) + "  "
+	if m.query == "" {
+		content += m.st.cursor.Render("█") + " " + m.st.placeholder.Render(m.st.placeholderText)
+	} else {
+		content += m.st.text.Render(m.query) + m.st.cursor.Render("█")
+	}
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(m.st.border.GetForeground()).
+		Padding(0, 1).
+		Width(w - 2).
+		Render(content)
+	b.WriteString(lipgloss.NewStyle().MarginLeft(1).Render(box) + "\n")
 
 	if len(m.actions) == 0 {
-		b.WriteString("   " + stDim.Render("nothing — esc to close"))
+		b.WriteString("\n   " + m.st.placeholder.Render("nothing here — keep typing or esc"))
 		return b.String()
 	}
 
@@ -134,29 +141,49 @@ func (m *tuiModel) View() string {
 		if icon == "" {
 			icon = " "
 		}
-		left := icon + "  " + a.Name
+		name := a.Name
 		badge := a.Group
 
-		pad := m.width - lipgloss.Width(left) - lipgloss.Width(badge) - 6
-		if pad < 1 {
-			over := -pad + 1
-			name := []rune(a.Name)
-			if len(name) > over+3 {
-				left = icon + "  " + string(name[:len(name)-over-3]) + "..."
+		// room: marker(3) + icon col + gaps + badge + right margin
+		avail := w - lipgloss.Width(icon) - lipgloss.Width(badge) - 9
+		if lipgloss.Width(name) > avail && avail > 3 {
+			r := []rune(name)
+			cut := len(r)
+			for cut > 0 && lipgloss.Width(string(r[:cut])) > avail-1 {
+				cut--
 			}
-			pad = m.width - lipgloss.Width(left) - lipgloss.Width(badge) - 6
-			if pad < 1 {
-				pad = 1
-			}
+			name = string(r[:cut]) + "…"
 		}
 
-		line := left + strings.Repeat(" ", pad) + stDim.Render(badge)
+		pad := w - lipgloss.Width(icon) - lipgloss.Width(name) - lipgloss.Width(badge) - 8
+		if pad < 1 {
+			pad = 1
+		}
+		row := " " + icon + "  " + name + strings.Repeat(" ", pad) + badge + " "
+
 		if i == m.cursor {
-			b.WriteString(" " + stMarker.Render("▌ ") + stSel.Render(line) + "\n")
+			b.WriteString(" " + m.st.marker.Render("▌") + m.st.selRow.Render(row) + "\n")
 		} else {
-			b.WriteString("   " + line + "\n")
+			styled := " " + icon + "  " + m.st.text.Render(name) +
+				strings.Repeat(" ", pad) + m.st.badge.Render(badge) + " "
+			b.WriteString("  " + styled + "\n")
 		}
 	}
+
+	// footer
+	count := len(m.actions)
+	left := "  "
+	if count == 1 {
+		left += "1 result"
+	} else {
+		left += fmt.Sprintf("%d results", count)
+	}
+	hints := "↑↓ navigate   ↵ run   esc close  "
+	fpad := w - lipgloss.Width(left) - lipgloss.Width(hints)
+	if fpad < 1 {
+		fpad = 1
+	}
+	b.WriteString("\n" + m.st.footer.Render(left+strings.Repeat(" ", fpad)+hints))
 	return b.String()
 }
 
