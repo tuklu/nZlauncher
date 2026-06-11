@@ -1,0 +1,152 @@
+# nZlauncher catalog — lives at ~/.config/neZha/catalog.toml
+# nz reads this fresh on every launch; edit and it just works.
+# keywords are reserved for Phase 2+ matching (walker filters on name for now).
+
+# ── Power ─────────────────────────────────────────────────────────────────────
+
+[[action]]
+id = "lock"
+name = "Lock Screen"
+icon = ""
+group = "power"
+cmd = "lock-screen"
+
+[[action]]
+id = "suspend"
+name = "Suspend"
+icon = "󰒲"
+group = "power"
+cmd = "systemctl suspend"
+
+[[action]]
+id = "restart"
+name = "Restart"
+icon = "󰜉"
+group = "power"
+cmd = "systemctl reboot"
+
+[[action]]
+id = "shutdown"
+name = "Shutdown"
+icon = "󰐥"
+group = "power"
+cmd = "systemctl poweroff"
+
+[[action]]
+id = "logout"
+name = "Logout"
+icon = "󰍃"
+group = "power"
+cmd = "uwsm stop"
+
+[[action]]
+id = "screensaver"
+name = "Start Screensaver"
+icon = "󱄄"
+group = "power"
+cmd = "launch-screensaver"
+
+# ── Toggles ───────────────────────────────────────────────────────────────────
+
+[[action]]
+id = "toggle-nightlight"
+name = "Toggle Nightlight"
+icon = "󰔎"
+group = "toggle"
+keywords = ["blue", "warm", "temperature"]
+cmd = "toggle-nightlight"
+
+[[action]]
+id = "toggle-idle"
+name = "Toggle Idle Lock"
+icon = "󱫖"
+group = "toggle"
+keywords = ["caffeine", "awake"]
+cmd = "toggle-idle"
+
+[[action]]
+id = "toggle-screensaver"
+name = "Toggle Screensaver"
+icon = "󱄄"
+group = "toggle"
+cmd = "toggle-screensaver"
+
+[[action]]
+id = "toggle-waybar"
+name = "Toggle Top Bar"
+icon = "󰍜"
+group = "toggle"
+keywords = ["waybar", "panel"]
+cmd = "pkill -SIGUSR1 waybar"
+
+# ── Capture ───────────────────────────────────────────────────────────────────
+
+[[action]]
+id = "screenshot-smart"
+name = "Screenshot"
+icon = ""
+group = "capture"
+cmd = "screenshot"
+
+[[action]]
+id = "screenshot-window"
+name = "Screenshot Window"
+icon = ""
+group = "capture"
+cmd = "screenshot windows"
+
+[[action]]
+id = "screenshot-full"
+name = "Screenshot Fullscreen"
+icon = ""
+group = "capture"
+cmd = "screenshot fullscreen"
+
+[[action]]
+id = "ocr"
+name = "Copy Text From Screen"
+icon = "󰴑"
+group = "capture"
+keywords = ["ocr", "extract"]
+cmd = "ocr"
+
+[[action]]
+id = "color-picker"
+name = "Pick Color"
+icon = ""
+group = "capture"
+keywords = ["hex", "eyedropper"]
+cmd = "pkill hyprpicker || hyprpicker -a"
+
+# ── Info / audio ──────────────────────────────────────────────────────────────
+
+[[action]]
+id = "battery"
+name = "Battery Status"
+icon = "󰁹"
+group = "info"
+cmd = "notify-send -u low \"$(battery-status)\""
+
+[[action]]
+id = "weather"
+name = "Weather"
+icon = ""
+group = "info"
+cmd = "notify-send -u low \"$(weather)\""
+
+[[action]]
+id = "audio-output"
+name = "Switch Audio Output"
+icon = "󰓃"
+group = "info"
+keywords = ["speaker", "headphones", "sink"]
+cmd = "audio-switch-output"
+
+[[action]]
+id = "mute-mic"
+name = "Mute Microphone Toggle"
+icon = "󰍭"
+group = "toggle"
+keywords = ["mic", "input"]
+cmd = "audio-mute-input"
+
