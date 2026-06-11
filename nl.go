@@ -86,6 +86,8 @@ func domainProvider(domain string) func(string) []Action {
 		return wifiActions
 	case "bluetooth", "bt":
 		return bluetoothActions
+	case "monitor", "display":
+		return monitorActions
 	}
 	return nil
 }

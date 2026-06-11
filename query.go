@@ -46,6 +46,7 @@ var prefixProviders = []struct {
 	{[]string{"workspace", "ws"}, workspaceActions},
 	{[]string{"brightness", "bright"}, brightnessActions},
 	{[]string{"file", "f"}, fileActions},
+	{[]string{"monitor", "display", "mon"}, monitorActions},
 }
 
 func fromProvider(q string) ([]Action, bool) {

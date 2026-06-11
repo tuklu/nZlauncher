@@ -118,6 +118,62 @@ group = "capture"
 keywords = ["hex", "eyedropper"]
 cmd = "pkill hyprpicker || hyprpicker -a"
 
+[[action]]
+id = "record-screen"
+name = "Record Screen"
+icon = "󰻃"
+group = "capture"
+keywords = ["screenrecord", "video", "capture", "stop"]
+cmd = "screenrecord"
+
+[[action]]
+id = "record-screen-audio"
+name = "Record Screen With Audio"
+icon = "󰻃"
+group = "capture"
+keywords = ["screenrecord", "video", "sound"]
+cmd = "screenrecord --audio"
+
+[[action]]
+id = "record-screen-mic"
+name = "Record Screen With Audio + Mic"
+icon = "󰻃"
+group = "capture"
+keywords = ["screenrecord", "video", "voice"]
+cmd = "screenrecord --audio --mic"
+
+[[action]]
+id = "set-reminder"
+name = "Set Reminder"
+icon = "󰒲"
+group = "info"
+keywords = ["timer", "remind", "alarm"]
+cmd = "reminder prompt"
+
+[[action]]
+id = "show-reminders"
+name = "Show Reminders"
+icon = "󰒲"
+group = "info"
+keywords = ["timer", "remind"]
+cmd = "reminder show"
+
+[[action]]
+id = "transcode"
+name = "Transcode Media"
+icon = "󰎁"
+group = "capture"
+keywords = ["convert", "ffmpeg", "compress", "video", "image"]
+cmd = "transcode"
+
+[[action]]
+id = "keybindings"
+name = "Show Keybindings"
+icon = "󰌌"
+group = "info"
+keywords = ["shortcuts", "keys", "hotkeys"]
+cmd = "keybindings"
+
 # ── Info / audio ──────────────────────────────────────────────────────────────
 
 [[action]]
