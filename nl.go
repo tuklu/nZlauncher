@@ -9,7 +9,16 @@ import "strings"
 
 var fillerWords = map[string]bool{
 	"the": true, "a": true, "an": true, "my": true, "please": true,
-	"to": true, "for": true, "of": true, "in": true,
+	"to": true, "for": true, "of": true, "in": true, "me": true,
+}
+
+func isDigits(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return len(s) > 0
 }
 
 func nlIntent(actions []Action, stats map[string]stat, ctx queryContext, q string) []Action {
@@ -66,6 +75,19 @@ func nlIntent(actions []Action, stats map[string]stat, ctx queryContext, q strin
 
 	case "kill", "stop":
 		return killActions(arg)
+
+	case "remind", "remember":
+		if isDigits(rest[0]) {
+			mins, msg := rest[0], strings.Join(rest[1:], " ")
+			name := "Remind in " + mins + "m"
+			if msg != "" {
+				name += ": " + msg
+			}
+			return []Action{{ID: "remind", Name: name, Icon: "󰔛", Group: "info",
+				Cmd: "reminder " + mins + " " + shellQuote(msg)}}
+		}
+		return []Action{{ID: "set-reminder", Name: "Set Reminder…", Icon: "󰔛", Group: "info",
+			Cmd: "reminder prompt"}}
 	}
 	return nil
 }

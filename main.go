@@ -14,12 +14,6 @@ func main() {
 
 	var err error
 	switch os.Args[1] {
-	case "menu":
-		group := ""
-		if len(os.Args) > 2 {
-			group = os.Args[2]
-		}
-		err = runMenu(group)
 	case "query":
 		err = runQuery(strings.Join(os.Args[2:], " "))
 	case "tui":
@@ -39,7 +33,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nz bar | tui | pick | query [text] | menu [group]")
+	fmt.Fprintln(os.Stderr, "usage: nz bar [query] | tui [query] | pick | query [text]")
 	os.Exit(2)
 }
 

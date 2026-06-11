@@ -49,6 +49,7 @@ var prefixProviders = []struct {
 	{[]string{"monitor", "display", "mon"}, monitorActions},
 	{[]string{"clipboard", "clip"}, clipboardActions},
 	{[]string{"emoji"}, emojiActions},
+	{[]string{"keys", "binds", "shortcuts"}, keysActions},
 }
 
 func fromProvider(q string) ([]Action, bool) {
