@@ -72,9 +72,23 @@ func fromProvider(q string) ([]Action, bool) {
 }
 
 func runQuery(raw string) error {
-	actions, err := gatherAll()
+	ranked, err := queryActions(raw)
 	if err != nil {
 		return err
+	}
+	clean := strings.NewReplacer("\t", " ", "\n", " ")
+	for _, a := range ranked {
+		fmt.Printf("%s\t%s\t%s\n", clean.Replace(a.ID), clean.Replace(a.Cmd), clean.Replace(a.display()))
+	}
+	return nil
+}
+
+// queryActions is the engine: every frontend (TUI, GTK, scripts via
+// runQuery's TSV) consumes this one function.
+func queryActions(raw string) ([]Action, error) {
+	actions, err := gatherAll()
+	if err != nil {
+		return nil, err
 	}
 	events := loadEvents()
 	stats := statsFrom(events)
@@ -106,11 +120,7 @@ func runQuery(raw string) error {
 		}
 	}
 
-	clean := strings.NewReplacer("\t", " ", "\n", " ")
-	for _, a := range ranked {
-		fmt.Printf("%s\t%s\t%s\n", clean.Replace(a.ID), clean.Replace(a.Cmd), clean.Replace(a.display()))
-	}
-	return nil
+	return ranked, nil
 }
 
 func frecencySorted(actions []Action, stats map[string]stat, now int64) []Action {

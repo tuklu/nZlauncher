@@ -2,60 +2,162 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
-// fzf in --disabled mode does no filtering of its own: every keystroke
-// reloads `nz query <q>`, so all matching and ranking lives in Go.
+// The TUI face: bubbletea, engine called in-process on every keystroke.
+// ANSI palette colors so the terminal theme stays in charge.
+var (
+	accent   = lipgloss.Color("4")
+	dim      = lipgloss.Color("8")
+	stPrompt = lipgloss.NewStyle().Foreground(accent).Bold(true)
+	stCursor = lipgloss.NewStyle().Foreground(accent)
+	stDim    = lipgloss.NewStyle().Foreground(dim)
+	stSel    = lipgloss.NewStyle().Bold(true)
+	stMarker = lipgloss.NewStyle().Foreground(accent).Bold(true)
+)
+
+type tuiModel struct {
+	query   string
+	actions []Action
+	cursor  int
+	offset  int
+	width   int
+	height  int
+}
+
 func runTUI(initial string) error {
-	self, err := os.Executable()
+	m := &tuiModel{query: initial, width: 80, height: 14}
+	m.refresh()
+	_, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
+	return err
+}
+
+func (m *tuiModel) refresh() {
+	acts, err := queryActions(m.query)
 	if err != nil {
-		self = "nz"
+		acts = nil
 	}
-	reload := fmt.Sprintf("reload:%s query {q}", self)
+	m.actions = acts
+	m.cursor = 0
+	m.offset = 0
+}
 
-	cmd := exec.Command("fzf",
-		"--disabled",
-		"--print-query",
-		"--delimiter", "\t",
-		"--with-nth", "3..",
-		"--bind", "start:"+reload,
-		"--bind", "change:"+reload,
-		"--layout", "reverse",
-		"--info", "hidden",
-		"--no-separator",
-		"--prompt", "❯ ",
-		"--pointer", "▌",
-		"--highlight-line",
-	)
-	if initial != "" {
-		cmd.Args = append(cmd.Args, "--query", initial)
+func (m *tuiModel) Init() tea.Cmd { return nil }
+
+func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
+			return m, tea.Quit
+		case tea.KeyEnter:
+			if m.cursor < len(m.actions) {
+				a := m.actions[m.cursor]
+				recordLaunch(a.ID, m.query)
+				launch(a.Cmd)
+			}
+			return m, tea.Quit
+		case tea.KeyUp, tea.KeyCtrlP, tea.KeyCtrlK:
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case tea.KeyDown, tea.KeyCtrlN, tea.KeyCtrlJ:
+			if m.cursor < len(m.actions)-1 {
+				m.cursor++
+			}
+		case tea.KeyBackspace:
+			if r := []rune(m.query); len(r) > 0 {
+				m.query = string(r[:len(r)-1])
+				m.refresh()
+			}
+		case tea.KeyCtrlU:
+			m.query = ""
+			m.refresh()
+		case tea.KeySpace:
+			m.query += " "
+			m.refresh()
+		case tea.KeyRunes:
+			m.query += string(msg.Runes)
+			m.refresh()
+		}
+		m.clamp()
 	}
-	cmd.Stdin = strings.NewReader("")
-	cmd.Stderr = os.Stderr
-	out, err := cmd.Output()
-	if err != nil {
-		return nil // dismissed with escape, or no match selected
+	return m, nil
+}
+
+func (m *tuiModel) visibleRows() int {
+	rows := m.height - 3
+	if rows < 1 {
+		rows = 1
+	}
+	return rows
+}
+
+func (m *tuiModel) clamp() {
+	rows := m.visibleRows()
+	if m.cursor < m.offset {
+		m.offset = m.cursor
+	}
+	if m.cursor >= m.offset+rows {
+		m.offset = m.cursor - rows + 1
+	}
+}
+
+func (m *tuiModel) View() string {
+	var b strings.Builder
+	b.WriteString(" " + stPrompt.Render("❯ ") + m.query + stCursor.Render("█") + "\n\n")
+
+	if len(m.actions) == 0 {
+		b.WriteString("   " + stDim.Render("nothing — esc to close"))
+		return b.String()
 	}
 
-	// with --print-query: first line is the typed query, second the selection
-	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
-	if len(lines) < 2 {
-		return nil
-	}
-	query := lines[0]
-	parts := strings.SplitN(lines[1], "\t", 3)
-	if len(parts) < 3 || parts[0] == "" {
-		return nil
+	rows := m.visibleRows()
+	end := m.offset + rows
+	if end > len(m.actions) {
+		end = len(m.actions)
 	}
 
-	if err := recordLaunch(parts[0], query); err != nil {
-		return err
+	for i := m.offset; i < end; i++ {
+		a := m.actions[i]
+
+		icon := a.Icon
+		if icon == "" {
+			icon = " "
+		}
+		left := icon + "  " + a.Name
+		badge := a.Group
+
+		pad := m.width - lipgloss.Width(left) - lipgloss.Width(badge) - 6
+		if pad < 1 {
+			over := -pad + 1
+			name := []rune(a.Name)
+			if len(name) > over+3 {
+				left = icon + "  " + string(name[:len(name)-over-3]) + "..."
+			}
+			pad = m.width - lipgloss.Width(left) - lipgloss.Width(badge) - 6
+			if pad < 1 {
+				pad = 1
+			}
+		}
+
+		line := left + strings.Repeat(" ", pad) + stDim.Render(badge)
+		if i == m.cursor {
+			b.WriteString(" " + stMarker.Render("▌ ") + stSel.Render(line) + "\n")
+		} else {
+			b.WriteString("   " + line + "\n")
+		}
 	}
-	return launch(parts[1])
+	return b.String()
 }
 
 // SUPER+SPACE toggles the launcher: close it if open, otherwise spawn.
