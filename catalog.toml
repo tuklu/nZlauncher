@@ -2,7 +2,8 @@
 # nz reads this fresh on every launch; edit and it just works.
 
 [settings]
-interface = "tui"   # tui | gtk (gtk frontend not built yet)
+interface = "gtk"    # tui | gtk
+gtk_mode = "overlay" # overlay (layer-shell, above everything) | window (managed by Hyprland rules)
 
 # ── Power ─────────────────────────────────────────────────────────────────────
 
@@ -174,7 +175,7 @@ name = "Show Keybindings"
 icon = "󰌌"
 group = "info"
 keywords = ["shortcuts", "keys", "hotkeys"]
-cmd = "keybindings"
+cmd = "nz bar \"keys \""
 
 # ── Info / audio ──────────────────────────────────────────────────────────────
 

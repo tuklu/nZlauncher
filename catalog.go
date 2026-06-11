@@ -25,6 +25,7 @@ func (a Action) display() string {
 
 type settings struct {
 	Interface string `toml:"interface"`
+	GtkMode   string `toml:"gtk_mode"`
 }
 
 var loadedSettings settings
@@ -37,6 +38,15 @@ func uiInterface() string {
 		return "gtk"
 	}
 	return "tui"
+}
+
+// overlay: layer-shell surface above everything (Spotlight-style).
+// window: a normal toplevel managed by Hyprland rules and animations.
+func gtkMode() string {
+	if loadedSettings.GtkMode == "window" {
+		return "window"
+	}
+	return "overlay"
 }
 
 func loadCatalog(path string) ([]Action, error) {

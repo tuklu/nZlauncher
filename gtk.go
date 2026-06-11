@@ -62,7 +62,7 @@ func buildGTKWindow(app *gtk.Application, initial string) {
 	win.AddCSSClass("nz")
 	win.SetDefaultSize(760, 500)
 
-	if layershell.IsSupported() {
+	if gtkMode() == "overlay" && layershell.IsSupported() {
 		w := &win.Window
 		layershell.InitForWindow(w)
 		layershell.SetNamespace(w, "nz-bar")
