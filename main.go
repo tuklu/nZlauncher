@@ -22,6 +22,8 @@ func main() {
 		err = runBar(strings.Join(os.Args[2:], " "))
 	case "pick":
 		err = runPick(os.Args[2:])
+	case "gtk":
+		err = runGTK(strings.Join(os.Args[2:], " "))
 	default:
 		usage()
 	}
@@ -33,7 +35,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nz bar [query] | tui [query] | pick | query [text]")
+	fmt.Fprintln(os.Stderr, "usage: nz bar [query] | tui [query] | gtk [query] | pick | query [text]")
 	os.Exit(2)
 }
 

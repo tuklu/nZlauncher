@@ -41,7 +41,7 @@ func parseDesktop(path, id string) (Action, bool) {
 		return Action{}, false
 	}
 
-	var name, execLine, categories string
+	var name, execLine, categories, iconName string
 	terminal := false
 	inEntry := false
 	for _, line := range strings.Split(string(data), "\n") {
@@ -74,6 +74,10 @@ func parseDesktop(path, id string) (Action, bool) {
 			terminal = val == "true"
 		case "Categories":
 			categories = val
+		case "Icon":
+			if iconName == "" {
+				iconName = val
+			}
 		}
 	}
 
@@ -86,7 +90,7 @@ func parseDesktop(path, id string) (Action, bool) {
 		cmd = "xdg-terminal-exec " + stripFieldCodes(execLine)
 	}
 	icon, keywords := categoryMeta(categories)
-	return Action{ID: "app:" + id, Name: name, Icon: icon, Group: "app", Keywords: keywords, Cmd: cmd}, true
+	return Action{ID: "app:" + id, Name: name, Icon: icon, IconName: iconName, Group: "app", Keywords: keywords, Cmd: cmd}, true
 }
 
 var categories = []struct {

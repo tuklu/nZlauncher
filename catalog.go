@@ -10,6 +10,7 @@ type Action struct {
 	ID       string   `toml:"id"`
 	Name     string   `toml:"name"`
 	Icon     string   `toml:"icon"`
+	IconName string   `toml:"icon_name"`
 	Group    string   `toml:"group"`
 	Cmd      string   `toml:"cmd"`
 	Keywords []string `toml:"keywords"`

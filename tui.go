@@ -189,13 +189,12 @@ func (m *tuiModel) View() string {
 
 // SUPER+SPACE toggles the launcher: close it if open, otherwise spawn.
 func runBar(initial string) error {
-	if exec.Command("pkill", "-f", `class=nz\.launcher`).Run() == nil {
-		return nil
+	killed := exec.Command("pkill", "-f", `class=nz\.launcher`).Run() == nil
+	if exec.Command("pkill", "-f", `nz gtk`).Run() == nil {
+		killed = true
 	}
-
-	if uiInterface() == "gtk" {
-		// reserved: GTK layer-shell frontend not built yet
-		exec.Command("notify-send", "-u", "low", "nz", "GTK frontend not built yet, using TUI").Run()
+	if killed {
+		return nil
 	}
 
 	self, err := os.Executable()
@@ -214,12 +213,17 @@ func runBar(initial string) error {
 		}
 	}
 
-	cmd := exec.Command("ghostty",
-		"--class=nz.launcher",
-		"--gtk-single-instance=false",
-		"--window-padding-x=12",
-		"--window-padding-y=10",
-		"-e", self, "tui", initial)
+	var cmd *exec.Cmd
+	if uiInterface() == "gtk" {
+		cmd = exec.Command(self, "gtk", initial)
+	} else {
+		cmd = exec.Command("ghostty",
+			"--class=nz.launcher",
+			"--gtk-single-instance=false",
+			"--window-padding-x=12",
+			"--window-padding-y=10",
+			"-e", self, "tui", initial)
+	}
 	cmd.Env = append(os.Environ(), "NZ_FOCUSED="+focused)
 	return startDetached(cmd)
 }
