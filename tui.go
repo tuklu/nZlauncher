@@ -10,7 +10,7 @@ import (
 
 // fzf in --disabled mode does no filtering of its own: every keystroke
 // reloads `nz query <q>`, so all matching and ranking lives in Go.
-func runTUI() error {
+func runTUI(initial string) error {
 	self, err := os.Executable()
 	if err != nil {
 		self = "nz"
@@ -31,6 +31,9 @@ func runTUI() error {
 		"--pointer", "▌",
 		"--highlight-line",
 	)
+	if initial != "" {
+		cmd.Args = append(cmd.Args, "--query", initial)
+	}
 	cmd.Stdin = strings.NewReader("")
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
@@ -56,9 +59,14 @@ func runTUI() error {
 }
 
 // SUPER+SPACE toggles the launcher: close it if open, otherwise spawn.
-func runBar() error {
+func runBar(initial string) error {
 	if exec.Command("pkill", "-f", `class=nz\.launcher`).Run() == nil {
 		return nil
+	}
+
+	if uiInterface() == "gtk" {
+		// reserved: GTK layer-shell frontend not built yet
+		exec.Command("notify-send", "-u", "low", "nz", "GTK frontend not built yet, using TUI").Run()
 	}
 
 	self, err := os.Executable()
@@ -82,7 +90,7 @@ func runBar() error {
 		"--gtk-single-instance=false",
 		"--window-padding-x=12",
 		"--window-padding-y=10",
-		"-e", self, "tui")
+		"-e", self, "tui", initial)
 	cmd.Env = append(os.Environ(), "NZ_FOCUSED="+focused)
 	return startDetached(cmd)
 }

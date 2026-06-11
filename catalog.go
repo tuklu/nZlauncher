@@ -22,12 +22,32 @@ func (a Action) display() string {
 	return a.Name
 }
 
+type settings struct {
+	Interface string `toml:"interface"`
+}
+
+var loadedSettings settings
+
+func uiInterface() string {
+	if loadedSettings.Interface == "" {
+		loadCatalog(catalogPath())
+	}
+	if loadedSettings.Interface == "gtk" {
+		return "gtk"
+	}
+	return "tui"
+}
+
 func loadCatalog(path string) ([]Action, error) {
 	var c struct {
-		Action []Action `toml:"action"`
+		Settings settings `toml:"settings"`
+		Action   []Action `toml:"action"`
 	}
 	if _, err := toml.DecodeFile(path, &c); err != nil {
 		return nil, fmt.Errorf("catalog: %w", err)
+	}
+	if c.Settings.Interface != "" {
+		loadedSettings = c.Settings
 	}
 	for i, a := range c.Action {
 		if a.ID == "" || a.Name == "" || a.Cmd == "" {

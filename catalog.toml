@@ -1,6 +1,8 @@
 # nZlauncher catalog — lives at ~/.config/neZha/catalog.toml
 # nz reads this fresh on every launch; edit and it just works.
-# keywords are reserved for Phase 2+ matching (walker filters on name for now).
+
+[settings]
+interface = "tui"   # tui | gtk (gtk frontend not built yet)
 
 # ── Power ─────────────────────────────────────────────────────────────────────
 

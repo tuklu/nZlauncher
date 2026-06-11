@@ -23,9 +23,11 @@ func main() {
 	case "query":
 		err = runQuery(strings.Join(os.Args[2:], " "))
 	case "tui":
-		err = runTUI()
+		err = runTUI(strings.Join(os.Args[2:], " "))
 	case "bar":
-		err = runBar()
+		err = runBar(strings.Join(os.Args[2:], " "))
+	case "pick":
+		err = runPick(os.Args[2:])
 	default:
 		usage()
 	}
@@ -37,7 +39,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nz bar | tui | query [text] | menu [group]")
+	fmt.Fprintln(os.Stderr, "usage: nz bar | tui | pick | query [text] | menu [group]")
 	os.Exit(2)
 }
 

@@ -73,17 +73,14 @@ func runMenu(group string) error {
 }
 
 func pick(lines []string, prompt string) (string, error) {
-	// maxheight sized for ~5 visible rows; the rest of the list scrolls/filters
-	cmd := exec.Command("walker", "--dmenu",
-		"-p", prompt+"…",
-		"--width", "720", "--minheight", "1", "--maxheight", "330")
-	cmd.Stdin = strings.NewReader(strings.Join(lines, "\n"))
-	out, err := cmd.Output()
-	if err != nil {
-		// walker exits nonzero when dismissed with Escape
+	out, err := floatFzf(strings.Join(lines, "\n"), []string{
+		"--layout", "reverse", "--info", "hidden", "--no-separator",
+		"--prompt", prompt + "… ", "--pointer", "▌", "--highlight-line",
+	}, "nz.pick")
+	if err != nil || len(out) == 0 {
 		return "", nil
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out[0]), nil
 }
 
 func launch(command string) error {

@@ -47,6 +47,8 @@ var prefixProviders = []struct {
 	{[]string{"brightness", "bright"}, brightnessActions},
 	{[]string{"file", "f"}, fileActions},
 	{[]string{"monitor", "display", "mon"}, monitorActions},
+	{[]string{"clipboard", "clip"}, clipboardActions},
+	{[]string{"emoji"}, emojiActions},
 }
 
 func fromProvider(q string) ([]Action, bool) {
@@ -56,6 +58,10 @@ func fromProvider(q string) ([]Action, bool) {
 				return p.fn(rest), true
 			}
 		}
+	}
+	word, rest, _ := strings.Cut(q, " ")
+	if acts, ok := pluginActions(word, strings.TrimSpace(rest)); ok {
+		return acts, true
 	}
 	return nil, false
 }
@@ -95,8 +101,9 @@ func runQuery(raw string) error {
 		}
 	}
 
+	clean := strings.NewReplacer("\t", " ", "\n", " ")
 	for _, a := range ranked {
-		fmt.Printf("%s\t%s\t%s\n", a.ID, a.Cmd, a.display())
+		fmt.Printf("%s\t%s\t%s\n", clean.Replace(a.ID), clean.Replace(a.Cmd), clean.Replace(a.display()))
 	}
 	return nil
 }
