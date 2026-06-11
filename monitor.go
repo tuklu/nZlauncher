@@ -8,6 +8,7 @@ import (
 // monitor / display — hyprmoncfg profiles; auto-detect picks the right one
 // for the current lid/HDMI state, the TUI handles everything deeper.
 func monitorActions(q string) []Action {
+	q = strings.ToLower(q)
 	acts := []Action{{
 		ID: "mon:auto", Name: "Monitor: Auto Detect", Icon: "󰍹", Group: "monitor",
 		Keywords: []string{"profile", "display"},

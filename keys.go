@@ -9,6 +9,7 @@ import (
 
 // keys / binds — every Hyprland binding, searchable; picking one executes it.
 func keysActions(q string) []Action {
+	q = strings.ToLower(q)
 	out, err := exec.Command("hyprctl", "binds", "-j").Output()
 	if err != nil {
 		return nil

@@ -166,7 +166,7 @@ name = "Transcode Media"
 icon = "󰎁"
 group = "capture"
 keywords = ["convert", "ffmpeg", "compress", "video", "image"]
-cmd = "transcode"
+cmd = "nz bar \"transcode \""
 
 [[action]]
 id = "keybindings"

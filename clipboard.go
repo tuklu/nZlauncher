@@ -7,6 +7,7 @@ import (
 
 // clip / clipboard — history via cliphist; picking re-copies the entry.
 func clipboardActions(q string) []Action {
+	q = strings.ToLower(q)
 	out, err := exec.Command("cliphist", "list").Output()
 	if err != nil {
 		return nil

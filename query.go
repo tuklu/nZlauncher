@@ -50,17 +50,21 @@ var prefixProviders = []struct {
 	{[]string{"clipboard", "clip"}, clipboardActions},
 	{[]string{"emoji"}, emojiActions},
 	{[]string{"keys", "binds", "shortcuts"}, keysActions},
+	{[]string{"transcode", "convert"}, transcodeActions},
 }
 
+// q keeps the caller's case: providers that match text lowercase it
+// themselves, ones that need raw input (file paths) get it intact.
 func fromProvider(q string) ([]Action, bool) {
+	lower := strings.ToLower(q)
 	for _, p := range prefixProviders {
 		for _, w := range p.words {
-			if rest, ok := prefixArg(q, w); ok {
-				return p.fn(rest), true
+			if _, ok := prefixArg(lower, w); ok {
+				return p.fn(strings.TrimSpace(q[min(len(w), len(q)):])), true
 			}
 		}
 	}
-	word, rest, _ := strings.Cut(q, " ")
+	word, rest, _ := strings.Cut(lower, " ")
 	if acts, ok := pluginActions(word, strings.TrimSpace(rest)); ok {
 		return acts, true
 	}
@@ -94,7 +98,7 @@ func runQuery(raw string) error {
 	default:
 		if nl := nlIntent(actions, stats, ctx, q); len(nl) > 0 {
 			ranked = append(nl, fallbacks(raw)...)
-		} else if provided, ok := fromProvider(q); ok {
+		} else if provided, ok := fromProvider(strings.TrimSpace(raw)); ok {
 			ranked = append(provided, fallbacks(raw)...)
 		} else {
 			pool := append(actions, windowActions()...)

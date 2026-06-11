@@ -10,6 +10,7 @@ import (
 
 // bt / bluetooth — power toggle plus paired devices with live connect state.
 func bluetoothActions(q string) []Action {
+	q = strings.ToLower(q)
 	if _, err := exec.LookPath("bluetoothctl"); err != nil {
 		return nil
 	}
@@ -75,6 +76,7 @@ func btDevices(filter string) map[string]string {
 
 // audio / sound / output — pick a specific output device, current one marked.
 func audioActions(q string) []Action {
+	q = strings.ToLower(q)
 	out, err := exec.Command("pactl", "-f", "json", "list", "sinks").Output()
 	if err != nil {
 		return nil

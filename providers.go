@@ -50,6 +50,7 @@ func windowActions() []Action {
 
 // kill [name] — user processes sorted by CPU, filtered by name.
 func killActions(q string) []Action {
+	q = strings.ToLower(q)
 	out, err := exec.Command("ps", "-u", os.Getenv("USER"),
 		"-o", "pid,pcpu,pmem,comm", "--sort=-pcpu", "--no-headers").Output()
 	if err != nil {
@@ -83,6 +84,7 @@ func killActions(q string) []Action {
 // wallpaper [name] — images in ~/.config/neZha/wallpaper, sets via the
 // wallpaper script which also persists the choice for next boot.
 func wallpaperActions(q string) []Action {
+	q = strings.ToLower(q)
 	dir := filepath.Join(os.Getenv("HOME"), ".config/neZha/wallpaper")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
