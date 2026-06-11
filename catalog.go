@@ -43,6 +43,9 @@ func uiInterface() string {
 // overlay: layer-shell surface above everything (Spotlight-style).
 // window: a normal toplevel managed by Hyprland rules and animations.
 func gtkMode() string {
+	if loadedSettings.GtkMode == "" {
+		loadCatalog(catalogPath())
+	}
 	if loadedSettings.GtkMode == "window" {
 		return "window"
 	}
@@ -57,7 +60,7 @@ func loadCatalog(path string) ([]Action, error) {
 	if _, err := toml.DecodeFile(path, &c); err != nil {
 		return nil, fmt.Errorf("catalog: %w", err)
 	}
-	if c.Settings.Interface != "" {
+	if c.Settings.Interface != "" || c.Settings.GtkMode != "" {
 		loadedSettings = c.Settings
 	}
 	for i, a := range c.Action {

@@ -3,7 +3,7 @@
 
 [settings]
 interface = "gtk"    # tui | gtk
-gtk_mode = "overlay" # overlay (layer-shell, above everything) | window (managed by Hyprland rules)
+gtk_mode = "window"  # overlay (layer-shell, above everything) | window (managed by Hyprland rules)
 
 # ── Power ─────────────────────────────────────────────────────────────────────
 
