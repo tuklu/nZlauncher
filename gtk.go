@@ -180,6 +180,8 @@ func buildGTKWindow(app *gtk.Application, initial string) {
 	})
 
 	keys := gtk.NewEventControllerKey()
+	// capture phase: the SearchEntry consumes Escape itself otherwise
+	keys.SetPropagationPhase(gtk.PhaseCapture)
 	keys.ConnectKeyPressed(func(keyval, _ uint, _ gdk.ModifierType) bool {
 		switch keyval {
 		case gdk.KEY_Escape:
