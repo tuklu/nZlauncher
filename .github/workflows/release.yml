@@ -22,7 +22,7 @@ jobs:
       - name: gtk dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev meson ninja-build libwayland-dev
+          sudo apt-get install -y libgtk-4-dev libgirepository1.0-dev meson ninja-build libwayland-dev
 
       # not packaged on ubuntu 24.04 - tiny C lib, build from source
       - name: gtk4-layer-shell
