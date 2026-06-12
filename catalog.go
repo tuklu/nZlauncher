@@ -1,10 +1,16 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 )
+
+//go:embed catalog.toml
+var defaultCatalog []byte
 
 type Action struct {
 	ID       string   `toml:"id"`
@@ -53,6 +59,10 @@ func gtkMode() string {
 }
 
 func loadCatalog(path string) ([]Action, error) {
+	if _, err := os.Stat(path); err != nil {
+		os.MkdirAll(filepath.Dir(path), 0o755)
+		os.WriteFile(path, defaultCatalog, 0o644)
+	}
 	var c struct {
 		Settings settings `toml:"settings"`
 		Action   []Action `toml:"action"`

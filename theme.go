@@ -1,12 +1,16 @@
 package main
 
 import (
+	_ "embed"
 	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/lipgloss"
 )
+
+//go:embed nz-tui.toml
+var defaultTUITheme []byte
 
 // TUI theme, loaded from ~/.config/neZha/theme/nz-tui.toml when present.
 // Colors accept ANSI indexes ("4"), 256-palette ints ("212"), or hex ("#89b4fa").
@@ -32,7 +36,11 @@ func loadTheme() tuiTheme {
 		PlaceholderText: "Search anything…",
 	}
 	path := filepath.Join(os.Getenv("HOME"), ".config/neZha/theme/nz-tui.toml")
-	toml.DecodeFile(path, &t) // missing or partial file just keeps defaults
+	if _, err := os.Stat(path); err != nil {
+		os.MkdirAll(filepath.Dir(path), 0o755)
+		os.WriteFile(path, defaultTUITheme, 0o644)
+	}
+	toml.DecodeFile(path, &t) // partial file keeps defaults for the rest
 	return t
 }
 
