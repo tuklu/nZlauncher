@@ -22,7 +22,18 @@ jobs:
       - name: gtk dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libgtk4-layer-shell-dev
+          sudo apt-get install -y libgtk-4-dev meson ninja-build libwayland-dev
+
+      # not packaged on ubuntu 24.04 - tiny C lib, build from source
+      - name: gtk4-layer-shell
+        run: |
+          git clone --depth 1 --branch v1.3.0 https://github.com/wmww/gtk4-layer-shell
+          cd gtk4-layer-shell
+          meson setup build -Dintrospection=false -Dexamples=false -Ddocs=false -Dtests=false
+          ninja -C build
+          sudo ninja -C build install
+          sudo ldconfig
+          echo "PKG_CONFIG_PATH=/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/local/lib/pkgconfig" >> "$GITHUB_ENV"
 
       - name: build
         run: go build -ldflags "-s -w" -o nz-linux-amd64 .
