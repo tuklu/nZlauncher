@@ -1,0 +1,38 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # ubuntu LTS = older glibc than rolling distros, so the prebuilt
+    # binary runs on a much wider range of systems
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: gtk dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libgtk4-layer-shell-dev
+
+      - name: build
+        run: go build -ldflags "-s -w" -o nz-linux-amd64 .
+
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" nz-linux-amd64 --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" nz-linux-amd64 --generate-notes
+          fi

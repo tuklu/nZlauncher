@@ -175,6 +175,21 @@ bind = SUPER CTRL, E, exec, nz bar "emoji "
 bind = SUPER, K, exec, nz bar "keys "
 ```
 
+## Development
+
+Branch model: `dev` is the working branch (default), `main` is stable.
+
+- day-to-day commits and PRs target `dev`
+- CI (vet + build) runs on every push and PR
+- release: merge `dev` into `main`, tag `vX.Y.Z` — Actions builds the
+  prebuilt on Ubuntu LTS (broad glibc compatibility) and attaches it to
+  the GitHub release automatically
+
+```sh
+git checkout main && git merge dev
+git tag v0.2.0 && git push origin main v0.2.0   # release happens by itself
+```
+
 ## License
 
 MIT
