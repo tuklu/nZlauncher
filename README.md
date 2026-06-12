@@ -32,6 +32,12 @@ Requirements: Go 1.22+, Hyprland. For the TUI face: a terminal
 (ghostty assumed). For the GTK face: `gtk4`, `gtk4-layer-shell`.
 
 ```sh
+curl -fsSL https://raw.githubusercontent.com/tuklu/nZlauncher/main/install.sh | bash
+```
+
+Or by hand:
+
+```sh
 git clone https://github.com/tuklu/nZlauncher
 cd nZlauncher
 go build -o ~/.local/bin/nz .
