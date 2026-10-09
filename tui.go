@@ -21,13 +21,19 @@ type tuiModel struct {
 	width   int
 	height  int
 	st      tuiStyles
+	picked  string // command to run once the window is gone
 }
 
 func runTUI(initial string) error {
 	m := &tuiModel{query: initial, width: 80, height: 16, st: buildStyles(loadTheme())}
 	m.refresh()
-	_, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
-	return err
+	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+		return err
+	}
+	if m.picked != "" {
+		return launchAfterClose(m.picked)
+	}
+	return nil
 }
 
 func (m *tuiModel) refresh() {
@@ -55,7 +61,7 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(m.actions) {
 				a := m.actions[m.cursor]
 				recordLaunch(a.ID, m.query)
-				launch(a.Cmd)
+				m.picked = a.Cmd
 			}
 			return m, tea.Quit
 		case tea.KeyUp, tea.KeyCtrlP, tea.KeyCtrlK:

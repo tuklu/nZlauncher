@@ -14,9 +14,13 @@ import (
 // ~/.config/neZha/theme/nz-gtk.css.
 func runGTK(initial string) error {
 	app := gtk.NewApplication("dev.tuklu.nz", gio.ApplicationFlagsNone)
-	app.ConnectActivate(func() { buildGTKWindow(app, initial) })
+	var picked string // command to run once the window is gone
+	app.ConnectActivate(func() { buildGTKWindow(app, initial, &picked) })
 	if code := app.Run(nil); code > 0 {
 		os.Exit(code)
+	}
+	if picked != "" {
+		return launchAfterClose(picked)
 	}
 	return nil
 }
@@ -57,7 +61,7 @@ window.nz {
 }
 `
 
-func buildGTKWindow(app *gtk.Application, initial string) {
+func buildGTKWindow(app *gtk.Application, initial string, picked *string) {
 	win := gtk.NewApplicationWindow(app)
 	win.AddCSSClass("nz")
 	win.SetDefaultSize(760, 500)
@@ -103,7 +107,7 @@ func buildGTKWindow(app *gtk.Application, initial string) {
 		if idx >= 0 && idx < len(actions) {
 			a := actions[idx]
 			recordLaunch(a.ID, entry.Text())
-			launch(a.Cmd)
+			*picked = a.Cmd
 		}
 		win.Close()
 	}

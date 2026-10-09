@@ -24,6 +24,8 @@ func main() {
 		err = runPick(os.Args[2:])
 	case "gtk":
 		err = runGTK(strings.Join(os.Args[2:], " "))
+	case "after-close":
+		err = runAfterClose(os.Args[2:])
 	default:
 		usage()
 	}
