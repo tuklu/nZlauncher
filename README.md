@@ -1,10 +1,10 @@
 # nZlauncher
 
-A launcher that learns. One input for everything your computer does —
-apps, windows, files, system control, natural language — ranked by what
-you actually use, when you use it.
+A launcher for Hyprland that learns how you use it. One input box for
+apps, windows, files, system controls and plain-English commands, ranked
+by what you actually open and when you open it.
 
-Built for Hyprland on Wayland. Alpha.
+Alpha. Wayland and Hyprland only.
 
 ```
  ╭──────────────────────────────────────────────╮
@@ -13,19 +13,26 @@ Built for Hyprland on Wayland. Alpha.
   ▌ 󰔛  Remind in 30m: check the oven        info
 ```
 
-## Highlights
+## What it does
 
-- **It learns** — frecency, hour-of-day patterns, launch sequences,
-  network and focused-app context, and your typed shorthand. All from a
-  local event log. Nothing leaves your machine.
-- **It never dead-ends** — unmatched queries become intents: inline
-  calculator, URL opener, run-in-terminal, web search.
-- **It speaks** — `set wallpaper to beach`, `turn off wifi`,
-  `connect mx master`, `switch to workspace 3`, `remind me in 20 to stretch`.
-- **Two faces, one brain** — a themeable terminal TUI and a native GTK4
-  window with real app icons. Pick per config, switch any time.
-- **Extensible in any language** — drop an executable in a directory,
-  it becomes a provider.
+Open it and the list is already your most likely next pick, worked out
+from how often and how recently you used things, the time of day, what
+you launched a minute ago, the wifi you're on and the app you came from.
+All of that comes from a local log file. Nothing goes over the network.
+
+Type and it filters everything at once. A word like `wifi`, `bt`, `vol`,
+`clip` or `keys` switches to that domain. Short sentences work too:
+`turn off wifi`, `set volume 40`, `open thunderbird`, `connect mx master`.
+
+If nothing matches you still get something useful: a calculator answer,
+a URL to open, the command run in a terminal, or a web search.
+
+There are two frontends on the same engine: a terminal UI (themeable,
+Nerd Font icons) and a native GTK4 window with real app icons. You pick
+one in the config.
+
+Anything not built in can be added as a script in any language. Drop an
+executable in `providers.d/` and its name becomes a new prefix word.
 
 ## Install
 
@@ -33,225 +40,52 @@ Built for Hyprland on Wayland. Alpha.
 curl -fsSL https://raw.githubusercontent.com/tuklu/nZlauncher/main/install.sh | bash
 ```
 
-The installer prefers the prebuilt release (no toolchain needed) and
-falls back to building from source. By hand:
+This grabs the prebuilt release if there is one and builds from source
+if not. To build it yourself (needs go, gtk4 and gtk4-layer-shell dev
+files):
 
 ```sh
 git clone https://github.com/tuklu/nZlauncher
 cd nZlauncher
-go build -o ~/.local/bin/nz ./cmd/nz   # needs go, gtk4 + gtk4-layer-shell dev files
+go build -o ~/.local/bin/nz ./cmd/nz
 ```
 
-Or straight from the module proxy (same build dependencies):
+or
 
 ```sh
 go install github.com/tuklu/nZlauncher/cmd/nz@latest
 ```
 
-Bind it in Hyprland and you're done — first run writes all config:
+Then bind it. In a Lua config:
+
+```lua
+hl.bind("SUPER + SPACE", hl.dsp.exec_cmd("nz bar"), { desc = "nZlauncher" })
+```
+
+In a hyprlang config:
 
 ```conf
 bind = SUPER, SPACE, exec, nz bar
 ```
 
-Runtime requirements: Hyprland, `gtk4` + `gtk4-layer-shell` (GTK face),
-a terminal for the TUI face (ghostty assumed). Optional, each enabling
-a provider: `cliphist` + `wl-clipboard` (clipboard history),
-`bluez-utils` (bluetooth), `iwd` (wifi), `fd` (file search),
-`hyprmoncfg` (monitor profiles), `fzf` (the `nz pick` utility).
+The first run writes every config file with defaults to
+`~/.config/neZha/`.
 
-## Using it
+Runtime needs: Hyprland, gtk4 + gtk4-layer-shell for the GTK face, and
+ghostty for the TUI face. Each optional tool turns on one provider:
+cliphist + wl-clipboard (clipboard), bluez-utils (bluetooth), iwd
+(wifi), fd (file search), hyprmoncfg (monitors), fzf (`nz pick`).
 
-Open the bar and type. The empty view shows your top items — predicted
-from frequency, recency, time of day, and what you launched moments ago.
-Typing filters everything: applications, open windows, files, actions.
+## Docs
 
-### Providers — type a word, get a domain
-
-| Type | Get |
+| | |
 |---|---|
-| `wifi` / `net` | networks with connect/disconnect, on/off toggles |
-| `bt` / `bluetooth` | paired devices with live connection state |
-| `audio` / `output` | output devices, current one marked |
-| `vol 40` / `volume` | direct volume, presets, mute |
-| `bright 60` / `brightness` | backlight presets or direct |
-| `ws 3` / `ws move 3` | workspace jump / move active window |
-| `monitor` / `display` | monitor profiles + auto-detect |
-| `kill chrom` | processes by CPU, pick to kill |
-| `clip` | clipboard history, pick to re-copy |
-| `emoji fire` | 1,784 emoji, pick to copy |
-| `file notes` / `f` | file search (recents when bare) |
-| `keys vol` | every keybinding, searchable |
-| `wallpaper` / `wp` | wallpapers, pick to set |
-| `transcode` | media converter: pick file, then format/resolution |
-| `apps` | every application |
-
-Several providers end with an "Open <TUI>" escape hatch into a full
-manager (impala, bluetui, wiremix, btop) when one is installed.
-
-`keys` works with Lua configs too. Hyprland reports Lua binds as opaque
-callbacks, so nZlauncher reads `hl.bind(...)` calls from
-`~/.config/hypr/*.lua`. Each one is labelled with its `desc`, its
-`exec_cmd` command, or the Lua expression itself, and picking it runs
-it (through `hyprctl eval` when it isn't a plain command). Binds whose
-combo is built in a loop can't be read statically and stay view-only.
-
-Every pick runs only after the launcher has closed, so screenshots,
-OCR, and color pickers never capture it.
-
-### Natural language
-
-`set`/`change`, `open`/`launch`, `turn on`/`turn off`,
-`connect`/`disconnect`, `switch`/`go`, `find`, `search`, `kill`,
-`remind`. Filler words (`the`, `to`, `my`, `me`, …) are ignored:
-"turn off the wifi" and "turn wifi off" both work.
-
-### Fallbacks — no dead ends
-
-Anything unmatched becomes: `5*8+2` → inline answer (enter copies),
-`github.com` → opens in browser, `btop` → run in a floating terminal
-(offered when the binary exists), anything else → web search.
-
-### How ranking works
-
-```
-score = name match (40–100)
-      + keyword match (up to 50)
-      + frecency      (hits × recency weight, cap 50)
-      + context bonus (hour affinity, launch sequences,
-                       network, focused app — cap 40)
-      + learned alias (typed query → past pick, up to 150)
-```
-
-The alias layer is the quiet killer: pick Chromium twice after typing
-"brw" and "brw" summons Chromium forever — even though it matches
-nothing in the name.
-
-## Commands
-
-| Command | What |
-|---|---|
-| `nz bar [query]` | toggle the launcher, optionally prefilled |
-| `nz tui [query]` / `nz gtk [query]` | a face directly |
-| `nz query [text]` | engine output as TSV — for scripts |
-| `nz pick [-p prompt] [-i]` | dmenu replacement: stdin lines in, pick out |
-
-Prefilled bindings make great dedicated keys:
-
-```conf
-bind = SUPER, ESCAPE, exec, nz bar "power "
-bind = SUPER CTRL, V, exec, nz bar "clip "
-bind = SUPER CTRL, E, exec, nz bar "emoji "
-bind = SUPER, K, exec, nz bar "keys "
-```
-
-## Configuration
-
-Everything lives in `~/.config/neZha/`, is written with defaults on
-first run, and is re-read on every launch — no rebuilds, no reloads.
-
-### `catalog.toml`
-
-```toml
-[settings]
-interface = "tui"    # tui | gtk
-gtk_mode = "overlay" # overlay (above everything) | window (WM-managed)
-icon_library = "nerd" # TUI app glyphs, see icons/ below
-
-[[action]]
-id = "lock"                    # learning identity — rename `name` freely,
-name = "Lock Screen"           #   history follows the id
-icon = ""                     # nerd-font glyph
-group = "power"                # badge + group listing (type "power")
-keywords = ["screen", "afk"]   # extra search terms
-cmd = "loginctl lock-session"  # shell command on pick
-```
-
-The shipped defaults reference example scripts — point `cmd` at
-whatever your system uses.
-
-### Your own providers — `providers.d/`
-
-The filename is the trigger word; it receives the query as `$1` and
-prints `id<TAB>command<TAB>display` lines:
-
-```sh
-#!/usr/bin/env bash
-# ~/.config/neZha/providers.d/pass — type "pass github" in the bar
-pass ls | grep -i "$1" | while read -r entry; do
-    printf 'pass:%s\tpass -c %q\t󰌾  %s\n' "$entry" "$entry" "$entry"
-done
-```
-
-Any language. Picks feed the same learning as everything else.
-
-### Icon libraries: `icons/`
-
-The TUI shows app glyphs from an icon library. The built-in `nerd.toml`
-maps about 250 common apps and every freedesktop category to Nerd Font
-glyphs. To bring your own, drop `~/.config/neZha/icons/<name>.toml` and
-set `icon_library = "<name>"`. Anything it leaves out falls back to the
-built-in set, so a library can be three lines:
-
-```toml
-[apps]
-thunderbird = "󰇮"     # desktop id, Icon=, StartupWMClass, or binary name
-"org.gnome.Nautilus" = "󰉋"
-
-[categories]
-Game = "󰊗"            # freedesktop category, used when no app matches
-
-[default]
-app = "󰣆"             # last resort
-```
-
-Matching is case-insensitive, and reverse-DNS ids also try their last
-segment (`org.mozilla.Thunderbird` matches `thunderbird`). The GTK face
-uses your real icon theme instead.
-
-### Themes — `theme/`
-
-`nz-tui.toml` (TUI): colors as ANSI index (follows your terminal
-palette), 256-palette, or hex:
-
-```toml
-accent = "4"
-selection_bg = "4"
-prompt_icon = "󰍉"
-placeholder_text = "Search anything…"
-```
-
-`nz-gtk.css` (GTK): plain GTK4 CSS. Classes: `window.nz`, `.nz-entry`,
-`.nz-list`, `.nz-list row`, `.nz-name`, `.nz-badge`.
-
-### Hyprland integration
-
-```conf
-# TUI face (floating terminal window)
-windowrule = float, class:^nz\.launcher$
-windowrule = center, class:^nz\.launcher$
-windowrule = size 720 420, class:^nz\.launcher$
-
-# GTK face, window mode
-windowrule = float, class:^dev\.tuklu\.nz$
-windowrule = center, class:^dev\.tuklu\.nz$
-windowrule = size 760 500, class:^dev\.tuklu\.nz$
-
-# GTK face, overlay mode (layer surface)
-layerrule = blur, nz-bar
-layerrule = ignorealpha 0.1, nz-bar
-```
-
-### Data
-
-`~/.local/share/neZha/events.jsonl` is the learning log — timestamp,
-typed query, battery, SSID, focused app per pick. Local only. Delete
-it to reset the brain.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) — repo layout, how the engine
-works, adding providers, and the release workflow.
+| [Usage](docs/usage.md) | searching, prefix words, sentences, fallbacks, keybinds |
+| [Configuration](docs/configuration.md) | catalog, settings, icon libraries, themes |
+| [Hyprland](docs/hyprland.md) | binds, window and layer rules |
+| [Plugins](docs/plugins.md) | writing your own providers |
+| [How it works](docs/how-it-works.md) | ranking, the learning model, the event log |
+| [Development](docs/development.md) | building, code layout, adding a provider, releases |
 
 ## License
 
