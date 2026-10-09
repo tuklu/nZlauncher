@@ -41,7 +41,8 @@ func parseDesktop(path, id string) (Action, bool) {
 		return Action{}, false
 	}
 
-	var name, execLine, categories, iconName string
+	var name, genericName, execLine, categories, iconName string
+	var desktopKeywords []string
 	terminal := false
 	inEntry := false
 	for _, line := range strings.Split(string(data), "\n") {
@@ -61,6 +62,14 @@ func parseDesktop(path, id string) (Action, bool) {
 		case "Name":
 			if name == "" {
 				name = val
+			}
+		case "GenericName":
+			if genericName == "" {
+				genericName = val
+			}
+		case "Keywords":
+			if desktopKeywords == nil {
+				desktopKeywords = strings.FieldsFunc(val, func(r rune) bool { return r == ';' })
 			}
 		case "Exec":
 			if execLine == "" {
@@ -90,6 +99,10 @@ func parseDesktop(path, id string) (Action, bool) {
 		cmd = "xdg-terminal-exec " + stripFieldCodes(execLine)
 	}
 	icon, keywords := categoryMeta(categories)
+	keywords = append(keywords, desktopKeywords...)
+	if genericName != "" {
+		keywords = append(keywords, genericName)
+	}
 	return Action{ID: "app:" + id, Name: name, Icon: icon, IconName: iconName, Group: "app", Keywords: keywords, Cmd: cmd}, true
 }
 
@@ -99,6 +112,14 @@ var categories = []struct {
 	keywords []string
 }{
 	{"TerminalEmulator", "", []string{"terminal", "term", "shell"}},
+	{"Email", "󰇮", []string{"email", "mail", "inbox"}},
+	{"InstantMessaging", "󰭹", []string{"chat", "messaging", "im"}},
+	{"Chat", "󰭹", []string{"chat", "messaging"}},
+	{"FileManager", "󰉋", []string{"files", "file manager", "explorer"}},
+	{"TextEditor", "󰷈", []string{"editor", "text", "notes"}},
+	{"Spreadsheet", "󰈛", []string{"spreadsheet", "sheets", "excel"}},
+	{"WordProcessor", "󰈙", []string{"document", "writer", "word"}},
+	{"Presentation", "󰈧", []string{"presentation", "slides"}},
 	{"WebBrowser", "󰖟", []string{"browser", "web", "internet"}},
 	{"IDE", "", []string{"editor", "code", "dev"}},
 	{"Development", "", []string{"dev", "code", "programming"}},
