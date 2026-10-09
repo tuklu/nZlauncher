@@ -1,0 +1,45 @@
+name: wiki
+
+# docs/ is the source; the wiki is rebuilt from it on every docs change to main
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "README.md"
+      - "scripts/docs-to-wiki.sh"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: wiki
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: clone wiki
+        run: git clone "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.wiki.git" wiki
+
+      # pages removed from docs/ disappear from the wiki too
+      - name: generate
+        run: |
+          find wiki -maxdepth 1 -name '*.md' -delete
+          scripts/docs-to-wiki.sh . wiki
+
+      - name: push
+        working-directory: wiki
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "wiki already up to date"
+            exit 0
+          fi
+          git commit -m "sync from ${GITHUB_SHA::7}"
+          git push

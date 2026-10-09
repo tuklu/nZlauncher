@@ -97,7 +97,7 @@ Things to keep to:
 - if a full TUI exists for the area, end with `tuiTail(binary, name, desc)`
 
 If it doesn't need to ship with nZlauncher, a script in `providers.d/`
-is less work. See [plugins.md](plugins.md).
+is less work. See [Plugins](plugins.md).
 
 ## Gotchas
 
@@ -113,6 +113,17 @@ is less work. See [plugins.md](plugins.md).
   capture phase to see it.
 - Don't run a picked command from inside the face. Hand it to
   `shell.LaunchAfterClose` so it runs once the launcher is gone.
+
+## Docs and the wiki
+
+`docs/` is the source. The [wiki](https://github.com/tuklu/nZlauncher/wiki)
+is generated from it by `scripts/docs-to-wiki.sh` whenever `docs/` or
+`README.md` changes on `main`, so don't edit the wiki directly. To see
+the output locally:
+
+```sh
+scripts/docs-to-wiki.sh . /tmp/wiki
+```
 
 ## Branches and commits
 

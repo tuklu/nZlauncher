@@ -83,4 +83,4 @@ nz query ssh prod                         # what the launcher will show
 
 If it should ship with nZlauncher, or needs to be part of the sentence
 grammar (`turn off ...`, `set ...`), it has to be Go code. See
-[development.md](development.md).
+[Development](development.md).

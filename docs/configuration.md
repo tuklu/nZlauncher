@@ -148,5 +148,5 @@ Leave a key out and its default is used.
 ## Data
 
 `~/.local/share/neZha/events.jsonl` is the learning log, one line per
-pick. See [how-it-works.md](how-it-works.md). Delete it to start
+pick. See [How it works](how-it-works.md). Delete it to start
 learning from scratch.
