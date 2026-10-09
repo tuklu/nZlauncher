@@ -83,6 +83,16 @@ Typing filters everything: applications, open windows, files, actions.
 Several providers end with an "Open <TUI>" escape hatch into a full
 manager (impala, bluetui, wiremix, btop) when one is installed.
 
+`keys` works with Lua configs too. Hyprland reports Lua binds as opaque
+callbacks, so nZlauncher reads `hl.bind(...)` calls from
+`~/.config/hypr/*.lua`. Each one is labelled with its `desc`, its
+`exec_cmd` command, or the Lua expression itself, and picking it runs
+it (through `hyprctl eval` when it isn't a plain command). Binds whose
+combo is built in a loop can't be read statically and stay view-only.
+
+Every pick runs only after the launcher has closed, so screenshots,
+OCR, and color pickers never capture it.
+
 ### Natural language
 
 `set`/`change`, `open`/`launch`, `turn on`/`turn off`,
@@ -140,6 +150,7 @@ first run, and is re-read on every launch — no rebuilds, no reloads.
 [settings]
 interface = "tui"    # tui | gtk
 gtk_mode = "overlay" # overlay (above everything) | window (WM-managed)
+icon_library = "nerd" # TUI app glyphs, see icons/ below
 
 [[action]]
 id = "lock"                    # learning identity — rename `name` freely,
@@ -167,6 +178,30 @@ done
 ```
 
 Any language. Picks feed the same learning as everything else.
+
+### Icon libraries: `icons/`
+
+The TUI shows app glyphs from an icon library. The built-in `nerd.toml`
+maps about 250 common apps and every freedesktop category to Nerd Font
+glyphs. To bring your own, drop `~/.config/neZha/icons/<name>.toml` and
+set `icon_library = "<name>"`. Anything it leaves out falls back to the
+built-in set, so a library can be three lines:
+
+```toml
+[apps]
+thunderbird = "󰇮"     # desktop id, Icon=, StartupWMClass, or binary name
+"org.gnome.Nautilus" = "󰉋"
+
+[categories]
+Game = "󰊗"            # freedesktop category, used when no app matches
+
+[default]
+app = "󰣆"             # last resort
+```
+
+Matching is case-insensitive, and reverse-DNS ids also try their last
+segment (`org.mozilla.Thunderbird` matches `thunderbird`). The GTK face
+uses your real icon theme instead.
 
 ### Themes — `theme/`
 
