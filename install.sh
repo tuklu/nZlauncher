@@ -53,7 +53,7 @@ if [[ -z $binary ]]; then
     git clone --depth 1 "$REPO" "$workdir/src" >/dev/null 2>&1 || fail "clone failed"
 
     say "building (first build compiles the GTK bindings — can take a few minutes)"
-    (cd "$workdir/src" && go build -ldflags "-s -w" -o "$workdir/nz" .) 2>"$workdir/build.log" || {
+    (cd "$workdir/src" && go build -ldflags "-s -w" -o "$workdir/nz" ./cmd/nz) 2>"$workdir/build.log" || {
         cat "$workdir/build.log" >&2
         fail "build failed"
     }

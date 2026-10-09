@@ -36,7 +36,7 @@ jobs:
           echo "PKG_CONFIG_PATH=/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/local/lib/pkgconfig" >> "$GITHUB_ENV"
 
       - name: build
-        run: go build -ldflags "-s -w" -o nz-linux-amd64 .
+        run: go build -ldflags "-s -w" -o nz-linux-amd64 ./cmd/nz
 
       - name: publish
         env:

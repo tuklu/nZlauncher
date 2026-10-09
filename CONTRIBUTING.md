@@ -9,7 +9,7 @@ sudo pacman -S go gtk4 gtk4-layer-shell
 # for the from-source recipe)
 sudo apt install golang libgtk-4-dev libgirepository1.0-dev
 
-go build -o nz .
+go build -o nz ./cmd/nz
 ```
 
 The first build compiles the gotk4 GTK bindings and takes several
@@ -20,64 +20,73 @@ minutes; afterwards Go's build cache makes rebuilds near-instant.
 One engine, three consumers:
 
 ```
-keystroke ──► queryActions(raw)              query.go
+keystroke ──► engine.Query(raw)              internal/engine/query.go
                 ├─ "" ............ top items by frecency + context
                 ├─ group name .... that group
                 ├─ NL verb ....... nl.go routes to a provider
-                ├─ prefix word ... built-in provider, or providers.d plugin
+                ├─ prefix word ... providers.ByPrefix: built-in or providers.d plugin
                 └─ otherwise ..... rank(catalog + apps + windows) + fallbacks
 
-consumers: tui.go (bubbletea), gtk.go (gotk4 + layer-shell),
-           runQuery TSV (`nz query`, scripts)
+consumers: internal/ui/tui (bubbletea), internal/ui/gtk (gotk4 + layer-shell),
+           `nz query` TSV (scripts)
 ```
 
-Every pick calls `recordLaunch(id, query)` which appends one line to
+Every pick calls `learn.Record(id, query)`, which appends one line to
 `events.jsonl` (timestamp, typed query, battery, SSID, focused app).
 The log is replayed on each query to build frecency stats and the
-context model — there is no daemon and no state between launches.
+context model. There is no daemon and no state between launches.
 
-### File map
+The picked command then runs through `shell.LaunchAfterClose`: a
+detached `nz after-close` waits for the launcher surface to leave
+Hyprland before running it, so captures and key-sending actions never
+see the launcher.
 
-| File | Owns |
-|---|---|
-| `query.go` | engine entry, provider registry, ranking |
-| `match.go` | match scoring (name/word/substring/fuzzy/keywords) |
-| `context_rank.go` | learned model: hour affinity, Markov successors, env signals, aliases |
-| `frecency.go` / `store.go` | scoring + event log |
-| `nl.go` | natural-language verb grammar |
-| `catalog.go` | catalog/settings parsing, embedded defaults |
-| `apps.go` | .desktop scanning, category icons/keywords |
-| `providers.go`, `system_providers.go`, `wifi.go`, `monitor.go`, `clipboard.go`, `emoji.go`, `keys.go`, `files.go`, `transcode.go` | built-in providers |
-| `plugins.go` | providers.d external provider contract |
-| `fallback.go`, `expr.go` | no-dead-end intents, calculator |
-| `tui.go`, `theme.go` | bubbletea face + nz-tui.toml theming |
-| `gtk.go` | GTK4 layer-shell face + nz-gtk.css theming |
-| `pick.go` | `nz pick` dmenu utility |
-| `exec.go`, `main.go` | detached launch, CLI dispatch |
+### Layout
+
+```
+cmd/nz/                 CLI dispatch, `bar` toggle, `pick` dmenu utility
+internal/
+  action/               the Action type every layer passes around
+  engine/               Query, match scoring, ranking, NL grammar, fallbacks, calculator
+  providers/            apps, windows, keys, wifi, bluetooth, audio, files, clipboard,
+                        emoji, monitor, transcode, providers.d plugins, prefix registry
+  learn/                event log, frecency, context model (hour, successors, env, aliases)
+  config/               catalog.toml + settings, embedded defaults
+  icons/                TUI icon library loader, embedded nerd.toml
+  shell/                quoting, detached launch, after-close handoff
+  sysinfo/              battery and SSID probes for event context
+  ui/tui/               bubbletea face + nz-tui.toml theming
+  ui/gtk/               GTK4 face + nz-gtk.css theming
+```
+
+Imports only point down this list: `providers` never imports `engine`,
+so the engine can call providers by name (the NL layer does) without a
+cycle. Embedded defaults live next to the package that embeds them,
+because `go:embed` can't reach a parent directory.
 
 ### Adding a built-in provider
 
 A provider is one function and one registration line:
 
 ```go
-// yourthing.go
-func yourThingActions(q string) []Action {
+// internal/providers/yourthing.go
+func YourThing(q string) []action.Action {
     q = strings.ToLower(q) // you receive raw case; lowercase for matching
-    var acts []Action
+    var acts []action.Action
     // ... build entries: ID (learning identity), Name, Icon, Group, Cmd
     return acts
 }
 ```
 
 ```go
-// query.go, prefixProviders table:
-{[]string{"yourthing", "yt"}, yourThingActions},
+// internal/providers/registry.go, prefixed table:
+{[]string{"yourthing", "yt"}, YourThing},
 ```
 
 Conventions: return `nil` when a required tool is missing (the provider
 just disappears), keep IDs stable so learning sticks, cap result counts,
 end with a `tuiTail(...)` escape hatch if a full TUI manager exists for
-the domain.
+the domain. Quote anything user-controlled with `shell.Quote`.
 
 If it doesn't need to ship in the binary, prefer a `providers.d` plugin
 instead — any executable printing `id<TAB>cmd<TAB>display` lines.
@@ -85,13 +94,14 @@ instead — any executable printing `id<TAB>cmd<TAB>display` lines.
 ### Things that bite
 
 - The TSV protocol breaks on raw tabs/newlines — output is sanitized in
-  `runQuery`, but keep Cmd strings tab-free (see clipboard.go's bare-id
-  decode for the pattern).
-- `hyprctl` cannot dispatch `__lua` binds (Lua-config Hyprland) — the
-  keys provider marks those view-only.
+  `cmd/nz`'s `runQuery`, but keep Cmd strings tab-free (see
+  clipboard.go's bare-id decode for the pattern).
+- `hyprctl` cannot dispatch `__lua` binds (Lua-config Hyprland), so
+  `providers/keys.go` recovers them from `hl.bind(...)` calls in the
+  config source and runs them through `hyprctl eval`.
 - GTK: the Wayland app_id is the GtkApplication id (`dev.tuklu.nz`);
   the SearchEntry consumes Escape unless your controller uses the
-  capture phase; settings readers must lazy-load the catalog.
+  capture phase.
 
 ## Workflow
 

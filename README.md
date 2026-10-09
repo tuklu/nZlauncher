@@ -39,7 +39,13 @@ falls back to building from source. By hand:
 ```sh
 git clone https://github.com/tuklu/nZlauncher
 cd nZlauncher
-go build -o ~/.local/bin/nz .       # needs go, gtk4 + gtk4-layer-shell dev files
+go build -o ~/.local/bin/nz ./cmd/nz   # needs go, gtk4 + gtk4-layer-shell dev files
+```
+
+Or straight from the module proxy (same build dependencies):
+
+```sh
+go install github.com/tuklu/nZlauncher/cmd/nz@latest
 ```
 
 Bind it in Hyprland and you're done — first run writes all config:
