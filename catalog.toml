@@ -4,6 +4,7 @@
 [settings]
 interface = "gtk"    # tui | gtk
 gtk_mode = "window"  # overlay (layer-shell, above everything) | window (managed by Hyprland rules)
+icon_library = "nerd" # TUI app glyphs: ~/.config/neZha/icons/<name>.toml
 
 # ── Power ─────────────────────────────────────────────────────────────────────
 

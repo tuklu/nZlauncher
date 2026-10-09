@@ -41,7 +41,7 @@ func parseDesktop(path, id string) (Action, bool) {
 		return Action{}, false
 	}
 
-	var name, genericName, execLine, categories, iconName string
+	var name, genericName, execLine, categoryList, iconName, wmClass string
 	var desktopKeywords []string
 	terminal := false
 	inEntry := false
@@ -82,7 +82,9 @@ func parseDesktop(path, id string) (Action, bool) {
 		case "Terminal":
 			terminal = val == "true"
 		case "Categories":
-			categories = val
+			categoryList = val
+		case "StartupWMClass":
+			wmClass = val
 		case "Icon":
 			if iconName == "" {
 				iconName = val
@@ -98,56 +100,68 @@ func parseDesktop(path, id string) (Action, bool) {
 	if terminal {
 		cmd = "xdg-terminal-exec " + stripFieldCodes(execLine)
 	}
-	icon, keywords := categoryMeta(categories)
+	desktopCategories := strings.FieldsFunc(categoryList, func(r rune) bool { return r == ';' })
+	keywords := categoryKeywords(desktopCategories)
 	keywords = append(keywords, desktopKeywords...)
 	if genericName != "" {
 		keywords = append(keywords, genericName)
 	}
+	lib := icons()
+	icon, found := lib.appGlyph(strings.TrimSuffix(id, ".desktop"), iconName, wmClass, execBinary(execLine))
+	if !found {
+		icon = lib.categoryGlyph(desktopCategories)
+	}
 	return Action{ID: "app:" + id, Name: name, Icon: icon, IconName: iconName, Group: "app", Keywords: keywords, Cmd: cmd}, true
 }
 
+// Order is priority: the first match picks the category icon (see icons.go),
+// so specific categories sit above broad ones like Network or Office.
 var categories = []struct {
 	match    string
-	icon     string
 	keywords []string
 }{
-	{"TerminalEmulator", "", []string{"terminal", "term", "shell"}},
-	{"Email", "󰇮", []string{"email", "mail", "inbox"}},
-	{"InstantMessaging", "󰭹", []string{"chat", "messaging", "im"}},
-	{"Chat", "󰭹", []string{"chat", "messaging"}},
-	{"FileManager", "󰉋", []string{"files", "file manager", "explorer"}},
-	{"TextEditor", "󰷈", []string{"editor", "text", "notes"}},
-	{"Spreadsheet", "󰈛", []string{"spreadsheet", "sheets", "excel"}},
-	{"WordProcessor", "󰈙", []string{"document", "writer", "word"}},
-	{"Presentation", "󰈧", []string{"presentation", "slides"}},
-	{"WebBrowser", "󰖟", []string{"browser", "web", "internet"}},
-	{"IDE", "", []string{"editor", "code", "dev"}},
-	{"Development", "", []string{"dev", "code", "programming"}},
-	{"Audio", "󰝚", []string{"music", "audio", "sound", "player"}},
-	{"AudioVideo", "󰕧", []string{"media", "video", "player"}},
-	{"Video", "󰕧", []string{"video", "media", "player"}},
-	{"Game", "󰊗", []string{"game", "gaming"}},
-	{"Graphics", "󰋩", []string{"image", "photo", "design", "graphics"}},
-	{"Office", "󰈙", []string{"office", "document"}},
-	{"Settings", "", []string{"settings", "preferences", "config"}},
-	{"System", "", []string{"system"}},
-	{"Network", "󰖟", []string{"network", "internet"}},
+	{"TerminalEmulator", []string{"terminal", "term", "shell"}},
+	{"Email", []string{"email", "mail", "inbox"}},
+	{"InstantMessaging", []string{"chat", "messaging", "im"}},
+	{"Chat", []string{"chat", "messaging"}},
+	{"FileManager", []string{"files", "file manager", "explorer"}},
+	{"TextEditor", []string{"editor", "text", "notes"}},
+	{"Spreadsheet", []string{"spreadsheet", "sheets", "excel"}},
+	{"WordProcessor", []string{"document", "writer", "word"}},
+	{"Presentation", []string{"presentation", "slides"}},
+	{"WebBrowser", []string{"browser", "web", "internet"}},
+	{"IDE", []string{"editor", "code", "dev"}},
+	{"Development", []string{"dev", "code", "programming"}},
+	{"Audio", []string{"music", "audio", "sound", "player"}},
+	{"AudioVideo", []string{"media", "video", "player"}},
+	{"Video", []string{"video", "media", "player"}},
+	{"Game", []string{"game", "gaming"}},
+	{"Graphics", []string{"image", "photo", "design", "graphics"}},
+	{"Office", []string{"office", "document"}},
+	{"Settings", []string{"settings", "preferences", "config"}},
+	{"System", []string{"system"}},
+	{"Network", []string{"network", "internet"}},
 }
 
-// Icon comes from the first matching category, keywords from all of them.
-func categoryMeta(list string) (string, []string) {
-	icon := "󰀻"
+func categoryKeywords(desktopCategories []string) []string {
 	var keywords []string
 	for _, c := range categories {
-		if !strings.Contains(list, c.match) {
+		if containsString(desktopCategories, c.match) {
+			keywords = append(keywords, c.keywords...)
+		}
+	}
+	return keywords
+}
+
+// "env FOO=1 /usr/lib/thunderbird/thunderbird %u" -> "thunderbird"
+func execBinary(execLine string) string {
+	for _, f := range strings.Fields(execLine) {
+		if f == "env" || strings.Contains(f, "=") {
 			continue
 		}
-		if icon == "󰀻" {
-			icon = c.icon
-		}
-		keywords = append(keywords, c.keywords...)
+		return filepath.Base(f)
 	}
-	return icon, keywords
+	return ""
 }
 
 func stripFieldCodes(exec string) string {

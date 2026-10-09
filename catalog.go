@@ -30,8 +30,9 @@ func (a Action) display() string {
 }
 
 type settings struct {
-	Interface string `toml:"interface"`
-	GtkMode   string `toml:"gtk_mode"`
+	Interface   string `toml:"interface"`
+	GtkMode     string `toml:"gtk_mode"`
+	IconLibrary string `toml:"icon_library"` // name of ~/.config/neZha/icons/<name>.toml
 }
 
 var loadedSettings settings
@@ -70,7 +71,7 @@ func loadCatalog(path string) ([]Action, error) {
 	if _, err := toml.DecodeFile(path, &c); err != nil {
 		return nil, fmt.Errorf("catalog: %w", err)
 	}
-	if c.Settings.Interface != "" || c.Settings.GtkMode != "" {
+	if c.Settings != (settings{}) {
 		loadedSettings = c.Settings
 	}
 	for i, a := range c.Action {
