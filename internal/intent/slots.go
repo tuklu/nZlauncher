@@ -234,6 +234,9 @@ func When(ws []Word, i int, now time.Time) (Span, int) {
 		}
 		return Span{at.Add(-d / 2), at.Add(d / 2)}, n + 1
 	}
+	if span, n := dayMonth(ws, i, now); n > 0 {
+		return span, n
+	}
 	if wd, ok := weekdayOf(w); ok {
 		back := (int(now.Weekday()) - int(wd) + 7) % 7
 		d := today.AddDate(0, 0, -back)
@@ -258,6 +261,60 @@ func When(ws []Word, i int, now time.Time) (Span, int) {
 		return Span{t, t.AddDate(0, 0, 1)}, 1
 	}
 	return Span{}, 0
+}
+
+// dayMonth reads one day: "4 jan", "4th of january", "jan 4", "jan 4th",
+// each with an optional year ("4 jan 2025", "jan 4, 2025"). Without a year
+// it is the last one that has begun, so "4 dec" in October is last year's.
+func dayMonth(ws []Word, i int, now time.Time) (Span, int) {
+	word := func(k int) string {
+		if k >= len(ws) {
+			return ""
+		}
+		return strings.TrimRight(ws[k].Canon, ",.")
+	}
+	var day int
+	var m time.Month
+	n := 0
+	if d, ok := dayOf(word(i)); ok {
+		k := i + 1
+		if word(k) == "of" {
+			k++
+		}
+		if month, ok := monthOf(word(k)); ok {
+			day, m, n = d, month, k-i+1
+		}
+	} else if month, ok := monthOf(word(i)); ok {
+		if d, ok := dayOf(word(i + 1)); ok {
+			day, m, n = d, month, 2
+		}
+	}
+	if n == 0 {
+		return Span{}, 0
+	}
+	year := now.Year()
+	explicit := false
+	if y, err := strconv.Atoi(word(i + n)); err == nil && len(word(i+n)) == 4 && y >= 1970 && y <= now.Year()+1 {
+		year, explicit = y, true
+		n++
+	}
+	at := time.Date(year, m, day, 0, 0, 0, 0, now.Location())
+	if at.Day() != day {
+		return Span{}, 0 // 31 february
+	}
+	if !explicit && at.After(now) {
+		at = at.AddDate(-1, 0, 0)
+	}
+	return Span{at, at.AddDate(0, 0, 1)}, n
+}
+
+// dayOf reads a day of the month: "4", "4th", "21st".
+func dayOf(s string) (int, bool) {
+	for _, suffix := range []string{"st", "nd", "rd", "th"} {
+		s = strings.TrimSuffix(s, suffix)
+	}
+	d, err := strconv.Atoi(s)
+	return d, err == nil && d >= 1 && d <= 31 && len(s) <= 2
 }
 
 // Year reads "2025" as that calendar year, for after "in", "from", "since".

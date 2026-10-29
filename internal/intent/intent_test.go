@@ -96,6 +96,11 @@ func TestFiles(t *testing.T) {
 		{q: "pdfs between march and may 2025", sure: true, ext: "pdf", after: date(2025, 3, 1), before: date(2025, 6, 1)},
 		{q: "pdfs from 2024 to 2025", sure: true, ext: "pdf", after: date(2024, 1, 1), before: date(2026, 1, 1)},
 		{q: "report pdf 2026-10-01", sure: true, terms: []string{"report"}, ext: "pdf", after: date(2026, 10, 1), before: date(2026, 10, 2)},
+		{q: "images from 4 jan to 5 march", sure: true, ext: "png", after: date(2026, 1, 4), before: date(2026, 3, 6)},
+		{q: "pdfs from 4th of january to march 5th", sure: true, ext: "pdf", after: date(2026, 1, 4), before: date(2026, 3, 6)},
+		{q: "pdfs from 4 dec to 5 jan", sure: true, ext: "pdf", after: date(2025, 12, 4), before: date(2026, 1, 6)},
+		{q: "pdfs on 4 jan 2025", sure: true, ext: "pdf", after: date(2025, 1, 4), before: date(2025, 1, 5)},
+		{q: "pdfs since jan 4, 2025", sure: true, ext: "pdf", after: date(2025, 1, 4)},
 		{q: "screenshot", sure: false, ext: "png"}, // the capture action
 		{q: "firefox", sure: false, terms: []string{"firefox"}},
 		{q: "find invoice", sure: false, terms: []string{"invoice"}},
