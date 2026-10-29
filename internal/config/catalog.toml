@@ -1,10 +1,10 @@
-# nZlauncher catalog — lives at ~/.config/neZha/catalog.toml
+# nZlauncher catalog, lives at ~/.config/nzlauncher/catalog.toml
 # nz reads this fresh on every launch; edit and it just works.
 
 [settings]
 interface = "gtk"    # tui | gtk
 gtk_mode = "window"  # overlay (layer-shell, above everything) | window (managed by Hyprland rules)
-icon_library = "nerd" # TUI app glyphs: ~/.config/neZha/icons/<name>.toml
+icon_library = "nerd" # TUI app glyphs: ~/.config/nzlauncher/icons/<name>.toml
 
 # ── Power ─────────────────────────────────────────────────────────────────────
 
@@ -168,7 +168,7 @@ name = "Transcode Media"
 icon = "󰎁"
 group = "capture"
 keywords = ["convert", "ffmpeg", "compress", "video", "image"]
-cmd = "nz bar \"transcode \""
+cmd = "nzlauncher bar \"transcode \""
 
 [[action]]
 id = "keybindings"
@@ -176,7 +176,7 @@ name = "Show Keybindings"
 icon = "󰌌"
 group = "info"
 keywords = ["shortcuts", "keys", "hotkeys"]
-cmd = "nz bar \"keys \""
+cmd = "nzlauncher bar \"keys \""
 
 # ── Info / audio ──────────────────────────────────────────────────────────────
 

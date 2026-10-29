@@ -1,10 +1,9 @@
 // Package gtk is the GTK4 face: layer-shell overlay or managed window,
-// real app icons, themed via ~/.config/neZha/theme/nz-gtk.css.
+// real app icons, themed via ~/.config/nzlauncher/theme/nz-gtk.css.
 package gtk
 
 import (
 	"os"
-	"path/filepath"
 
 	layershell "github.com/diamondburned/gotk4-layer-shell/pkg/gtk4layershell"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -32,7 +31,7 @@ func Run(initial, mode string) error {
 }
 
 func gtkCSSPath() string {
-	return filepath.Join(config.Dir(), "theme/nz-gtk.css")
+	return config.ThemeFile("nz-gtk.css")
 }
 
 const defaultGTKCSS = `/* nZlauncher GTK theme - edit freely */
@@ -80,12 +79,13 @@ func buildWindow(app *gtk.Application, initial, mode string, picked *string) {
 		layershell.SetKeyboardMode(w, layershell.LayerShellKeyboardModeExclusive)
 	}
 
-	if _, err := os.Stat(gtkCSSPath()); err != nil {
-		os.MkdirAll(filepath.Dir(gtkCSSPath()), 0o755)
-		os.WriteFile(gtkCSSPath(), []byte(defaultGTKCSS), 0o644)
-	}
+	// built-in look unless a theme provides one; nothing is written
 	css := gtk.NewCSSProvider()
-	css.LoadFromPath(gtkCSSPath())
+	if _, err := os.Stat(gtkCSSPath()); err == nil {
+		css.LoadFromPath(gtkCSSPath())
+	} else {
+		css.LoadFromString(defaultGTKCSS)
+	}
 	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), css, 800)
 
 	entry := gtk.NewSearchEntry()

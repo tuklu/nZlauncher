@@ -1,6 +1,6 @@
 # Plugins
 
-A plugin is any executable in `~/.config/neZha/providers.d/`. The file
+A plugin is any executable in `~/.config/nzlauncher/providers.d/`. The file
 name is the prefix word. Type `pass github` and nZlauncher runs
 `providers.d/pass github`.
 
@@ -38,7 +38,7 @@ pass entries, pick to copy the password:
 
 ```sh
 #!/usr/bin/env bash
-# ~/.config/neZha/providers.d/pass
+# ~/.config/nzlauncher/providers.d/pass
 set -euo pipefail
 cd "${PASSWORD_STORE_DIR:-$HOME/.password-store}"
 find . -name '*.gpg' | sed 's|^\./||; s|\.gpg$||' | grep -i -- "${1:-}" | head -30 |
@@ -51,7 +51,7 @@ SSH hosts from your config, pick to open a terminal:
 
 ```sh
 #!/usr/bin/env bash
-# ~/.config/neZha/providers.d/ssh
+# ~/.config/nzlauncher/providers.d/ssh
 set -euo pipefail
 awk '/^Host / && $2 !~ /[*?]/ { print $2 }' ~/.ssh/config | grep -i -- "${1:-}" |
 while read -r host; do
@@ -63,7 +63,7 @@ Not bash only. Same thing in Python:
 
 ```python
 #!/usr/bin/env python3
-# ~/.config/neZha/providers.d/proj
+# ~/.config/nzlauncher/providers.d/proj
 import pathlib, sys
 
 query = sys.argv[1].lower() if len(sys.argv) > 1 else ""
@@ -75,8 +75,8 @@ for d in sorted((pathlib.Path.home() / "Development").iterdir()):
 ## Test it without the launcher
 
 ```sh
-~/.config/neZha/providers.d/ssh prod      # raw plugin output
-nz query ssh prod                         # what the launcher will show
+~/.config/nzlauncher/providers.d/ssh prod      # raw plugin output
+nzlauncher query ssh prod                         # what the launcher will show
 ```
 
 ## When to write a built-in instead

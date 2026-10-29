@@ -2,24 +2,24 @@
 
 ## Opening it
 
-`nz bar` toggles the launcher. If it's already open, running it again
+`nzlauncher bar` toggles the launcher. If it's already open, running it again
 closes it. You can prefill the query, which is handy for dedicated keys:
 
 ```sh
-nz bar "power "
-nz bar "clip "
-nz bar "keys "
+nzlauncher bar "power "
+nzlauncher bar "clip "
+nzlauncher bar "keys "
 ```
 
 Other commands:
 
 | Command | What it does |
 |---|---|
-| `nz bar [query]` | toggle the launcher with the face set in the config |
-| `nz tui [query]` | run the terminal face in the current terminal |
-| `nz gtk [query]` | open the GTK face directly |
-| `nz query [text]` | print results as TSV (`id`, `cmd`, `display`), for scripts |
-| `nz pick [-p prompt] [-i]` | dmenu replacement, see below |
+| `nzlauncher bar [query]` | toggle the launcher with the face set in the config |
+| `nzlauncher tui [query]` | run the terminal face in the current terminal |
+| `nzlauncher gtk [query]` | open the GTK face directly |
+| `nzlauncher query [text]` | print results as TSV (`id`, `cmd`, `display`), for scripts |
+| `nzlauncher pick [-p prompt] [-i]` | dmenu replacement, see below |
 
 ## Keys
 
@@ -76,7 +76,7 @@ The first word can send the query to one provider:
 | `emoji fire` | 1,784 emoji, pick to copy |
 | `file notes`, `f` | file search with fd, recent files when empty |
 | `keys vol` | every Hyprland keybind, pick to run it |
-| `wallpaper`, `wp` | images in `~/.config/neZha/wallpaper`, pick to set |
+| `wallpaper`, `wp` | images in `~/.config/nzlauncher/wallpaper`, pick to set |
 | `transcode` | pick a media file, then a format and resolution |
 
 If a full TUI for that area is installed (impala, bluetui, wiremix,
@@ -130,15 +130,15 @@ When the query doesn't match anything well, these are added at the end:
 - `btop` (anything that's a binary on PATH) runs in a floating terminal
 - anything else becomes a web search
 
-## nz pick
+## nzlauncher pick
 
 A dmenu replacement for your own scripts. It reads lines from stdin,
 shows them in fzf inside a floating ghostty window, and prints the
 pick.
 
 ```sh
-choice=$(printf 'one\ntwo\nthree\n' | nz pick -p "Number")
-name=$(nz pick -i -p "Name" < /dev/null)    # -i returns typed text if nothing matches
+choice=$(printf 'one\ntwo\nthree\n' | nzlauncher pick -p "Number")
+name=$(nzlauncher pick -i -p "Name" < /dev/null)    # -i returns typed text if nothing matches
 ```
 
 The window class is `nz.pick`, so you can give it its own rules.

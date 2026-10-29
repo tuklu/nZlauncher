@@ -5,25 +5,25 @@ after.
 
 ## Binds
 
-`nz bar` toggles, so one key opens and closes it. A prefilled query
+`nzlauncher bar` toggles, so one key opens and closes it. A prefilled query
 makes a direct shortcut to one provider or group.
 
 ```lua
-hl.bind("SUPER + SPACE",    hl.dsp.exec_cmd("nz bar"),             { desc = "nZlauncher" })
-hl.bind("SUPER + CTRL + V", hl.dsp.exec_cmd('nz bar "clip "'),     { desc = "Clipboard manager" })
-hl.bind("SUPER + CTRL + E", hl.dsp.exec_cmd('nz bar "emoji "'),    { desc = "Emoji picker" })
-hl.bind("SUPER + CTRL + C", hl.dsp.exec_cmd('nz bar "capture "'),  { desc = "Capture menu" })
-hl.bind("SUPER + ESCAPE",   hl.dsp.exec_cmd('nz bar "power "'),    { desc = "Power menu" })
-hl.bind("SUPER + K",        hl.dsp.exec_cmd('nz bar "keys "'),     { desc = "Show key bindings" })
+hl.bind("SUPER + SPACE",    hl.dsp.exec_cmd("nzlauncher bar"),             { desc = "nZlauncher" })
+hl.bind("SUPER + CTRL + V", hl.dsp.exec_cmd('nzlauncher bar "clip "'),     { desc = "Clipboard manager" })
+hl.bind("SUPER + CTRL + E", hl.dsp.exec_cmd('nzlauncher bar "emoji "'),    { desc = "Emoji picker" })
+hl.bind("SUPER + CTRL + C", hl.dsp.exec_cmd('nzlauncher bar "capture "'),  { desc = "Capture menu" })
+hl.bind("SUPER + ESCAPE",   hl.dsp.exec_cmd('nzlauncher bar "power "'),    { desc = "Power menu" })
+hl.bind("SUPER + K",        hl.dsp.exec_cmd('nzlauncher bar "keys "'),     { desc = "Show key bindings" })
 ```
 
 ```conf
-bind = SUPER, SPACE, exec, nz bar
-bind = SUPER CTRL, V, exec, nz bar "clip "
-bind = SUPER CTRL, E, exec, nz bar "emoji "
-bind = SUPER CTRL, C, exec, nz bar "capture "
-bind = SUPER, ESCAPE, exec, nz bar "power "
-bind = SUPER, K, exec, nz bar "keys "
+bind = SUPER, SPACE, exec, nzlauncher bar
+bind = SUPER CTRL, V, exec, nzlauncher bar "clip "
+bind = SUPER CTRL, E, exec, nzlauncher bar "emoji "
+bind = SUPER CTRL, C, exec, nzlauncher bar "capture "
+bind = SUPER, ESCAPE, exec, nzlauncher bar "power "
+bind = SUPER, K, exec, nzlauncher bar "keys "
 ```
 
 The trailing space matters. `"clip "` puts the cursor after the prefix
@@ -34,7 +34,7 @@ the raw command.
 
 ## Window rules
 
-The TUI face is a ghostty window with class `nz.launcher`. `nz pick`
+The TUI face is a ghostty window with class `nz.launcher`. `nzlauncher pick`
 uses `nz.pick`. The GTK face in `window` mode uses `dev.tuklu.nz`.
 
 ```lua
@@ -83,7 +83,7 @@ layerrule = ignorealpha 0.1, nz-bar
 ## Running actions after the launcher closes
 
 When you pick something, the command doesn't start right away. The
-launcher hands it to a detached `nz after-close`, which:
+launcher hands it to a detached `nzlauncher after-close`, which:
 
 1. waits for the launcher process to exit
 2. polls `hyprctl clients` and `hyprctl layers` until no `nz.launcher`,
@@ -103,15 +103,17 @@ hl.window_rule({ match = { class = "^nz\\.launcher$" }, no_anim = true })
 windowrule = noanim, class:^nz\.launcher$
 ```
 
-## Two copies of nz on PATH
+## Two copies on PATH
 
 Hyprland runs binds with its own `PATH`, which can be different from
-your shell's. If a bind seems to run an old build, check which `nz` it
-finds:
+your shell's. If a bind seems to run an old build, check which
+`nzlauncher` it finds:
 
 ```sh
 tr '\0' '\n' < /proc/$(pgrep -x Hyprland)/environ | grep ^PATH=
-which -a nz
+which -a nzlauncher
 ```
 
-Remove the stale one or symlink it to the new build.
+Remove the stale one. A leftover `nz` from before the rename can go too;
+the binary is `nzlauncher` now, `nz` is only worth keeping as a shell alias
+(`alias nz=nzlauncher`), since binds do not see aliases.

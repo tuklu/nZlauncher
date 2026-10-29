@@ -2,17 +2,17 @@ package tui
 
 import (
 	_ "embed"
-	"os"
-	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/tuklu/nZlauncher/internal/config"
 )
 
 //go:embed nz-tui.toml
 var defaultTUITheme []byte
 
-// TUI theme, loaded from ~/.config/neZha/theme/nz-tui.toml when present.
+// TUI theme, loaded from ~/.config/nzlauncher/theme/nz-tui.toml when present.
 // Colors accept ANSI indexes ("4"), 256-palette ints ("212"), or hex ("#89b4fa").
 type tuiTheme struct {
 	Accent          string `toml:"accent"`
@@ -35,12 +35,9 @@ func loadTheme() tuiTheme {
 		PromptIcon:      "󰍉",
 		PlaceholderText: "Search anything…",
 	}
-	path := filepath.Join(os.Getenv("HOME"), ".config/neZha/theme/nz-tui.toml")
-	if _, err := os.Stat(path); err != nil {
-		os.MkdirAll(filepath.Dir(path), 0o755)
-		os.WriteFile(path, defaultTUITheme, 0o644)
-	}
-	toml.DecodeFile(path, &t) // partial file keeps defaults for the rest
+	// built-in theme first, then a theme's file over it; nothing is written
+	toml.Decode(string(defaultTUITheme), &t)
+	toml.DecodeFile(config.ThemeFile("nz-tui.toml"), &t) // partial file keeps defaults for the rest
 	return t
 }
 

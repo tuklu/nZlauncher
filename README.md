@@ -47,34 +47,34 @@ files):
 ```sh
 git clone https://github.com/tuklu/nZlauncher
 cd nZlauncher
-go build -o ~/.local/bin/nz ./cmd/nz
+go build -o ~/.local/bin/nz ./cmd/nzlauncher
 ```
 
 or
 
 ```sh
-go install github.com/tuklu/nZlauncher/cmd/nz@latest
+go install github.com/tuklu/nZlauncher/cmd/nzlauncher@latest
 ```
 
 Then bind it. In a Lua config:
 
 ```lua
-hl.bind("SUPER + SPACE", hl.dsp.exec_cmd("nz bar"), { desc = "nZlauncher" })
+hl.bind("SUPER + SPACE", hl.dsp.exec_cmd("nzlauncher bar"), { desc = "nZlauncher" })
 ```
 
 In a hyprlang config:
 
 ```conf
-bind = SUPER, SPACE, exec, nz bar
+bind = SUPER, SPACE, exec, nzlauncher bar
 ```
 
 The first run writes every config file with defaults to
-`~/.config/neZha/`.
+`~/.config/nzlauncher/`.
 
 Runtime needs: Hyprland, gtk4 + gtk4-layer-shell for the GTK face, and
 ghostty for the TUI face. Each optional tool turns on one provider:
 cliphist + wl-clipboard (clipboard), bluez-utils (bluetooth), iwd
-(wifi), fd (file search), hyprmoncfg (monitors), fzf (`nz pick`).
+(wifi), fd (file search), hyprmoncfg (monitors), fzf (`nzlauncher pick`).
 
 ## Docs
 

@@ -1,4 +1,4 @@
-// nz is the nZlauncher CLI: launcher faces, the engine as TSV, and helpers.
+// nzlauncher is the CLI: launcher faces, the engine as TSV, and helpers.
 package main
 
 import (
@@ -17,6 +17,7 @@ func main() {
 	if len(os.Args) < 2 {
 		usage()
 	}
+	config.Migrate()
 
 	var err error
 	switch os.Args[1] {
@@ -37,13 +38,13 @@ func main() {
 	}
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "nz:", err)
+		fmt.Fprintln(os.Stderr, "nzlauncher:", err)
 		os.Exit(1)
 	}
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nz bar [query] | tui [query] | gtk [query] | pick | query [text]")
+	fmt.Fprintln(os.Stderr, "usage: nzlauncher bar [query] | tui [query] | gtk [query] | pick | query [text]")
 	os.Exit(2)
 }
 

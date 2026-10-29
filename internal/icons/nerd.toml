@@ -1,5 +1,5 @@
 # nZlauncher icon library: Nerd Fonts (v3)
-# Lives at ~/.config/neZha/icons/nerd.toml. Copy it to <name>.toml and set
+# Lives at ~/.config/nzlauncher/icons/nerd.toml. Copy it to <name>.toml and set
 # icon_library = "<name>" under [settings] in catalog.toml to use your own.
 # Anything a library leaves out falls back to this built-in set.
 #

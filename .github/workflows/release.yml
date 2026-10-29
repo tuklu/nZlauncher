@@ -36,14 +36,14 @@ jobs:
           echo "PKG_CONFIG_PATH=/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/local/lib/pkgconfig" >> "$GITHUB_ENV"
 
       - name: build
-        run: go build -ldflags "-s -w" -o nz-linux-amd64 ./cmd/nz
+        run: go build -ldflags "-s -w" -o nzlauncher-linux-amd64 ./cmd/nzlauncher
 
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" nz-linux-amd64 --clobber
+            gh release upload "$GITHUB_REF_NAME" nzlauncher-linux-amd64 --clobber
           else
-            gh release create "$GITHUB_REF_NAME" nz-linux-amd64 --generate-notes
+            gh release create "$GITHUB_REF_NAME" nzlauncher-linux-amd64 --generate-notes
           fi

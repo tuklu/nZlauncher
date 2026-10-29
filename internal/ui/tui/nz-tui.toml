@@ -1,4 +1,4 @@
-# nZlauncher TUI theme — lives at ~/.config/neZha/theme/nz-tui.toml
+# nZlauncher TUI theme, read from ~/.config/nzlauncher/theme/nz-tui.toml
 # Colors: ANSI index ("0"-"15", follows your terminal theme),
 # 256-palette ("212"), or hex ("#89b4fa"). Empty = terminal default.
 

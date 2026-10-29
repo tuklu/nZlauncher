@@ -48,7 +48,7 @@ func Transcode(q string) []action.Action {
 		// so runBar's toggle check doesn't see it as already open
 		acts = append(acts, action.Action{
 			ID: "tc:" + path, Name: "Transcode " + display, Icon: "󰈟", Group: "transcode",
-			Cmd: "sleep 0.2 && nz bar " + shell.Quote(`transcode "`+path+`" `),
+			Cmd: "sleep 0.2 && nzlauncher bar " + shell.Quote(`transcode "`+path+`" `),
 		})
 		if len(acts) == 25 {
 			break

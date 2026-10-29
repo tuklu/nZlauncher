@@ -15,7 +15,7 @@ import (
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
-// Look is driven by ~/.config/neZha/theme/nz-tui.toml.
+// Look is driven by ~/.config/nzlauncher/theme/nz-tui.toml.
 type tuiModel struct {
 	query   string
 	actions []action.Action

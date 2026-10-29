@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
@@ -84,11 +85,15 @@ func Kill(q string) []action.Action {
 	return append(acts, tuiTail("btop", "Btop", "full process monitor")...)
 }
 
-// wallpaper [name] — images in ~/.config/neZha/wallpaper, sets via the
-// wallpaper script which also persists the choice for next boot.
+// wallpaper [name]: images in the wallpaper_dir setting, applied with
+// wallpaper_cmd and the image path appended.
 func Wallpaper(q string) []action.Action {
 	q = strings.ToLower(q)
-	dir := filepath.Join(os.Getenv("HOME"), ".config/neZha/wallpaper")
+	catalog, _ := config.Load()
+	dir, setCmd := catalog.Settings.Wallpapers()
+	if _, err := exec.LookPath(strings.Fields(setCmd)[0]); err != nil {
+		return nil
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
@@ -109,7 +114,7 @@ func Wallpaper(q string) []action.Action {
 			Name:  "Wallpaper: " + name,
 			Icon:  "󰸉",
 			Group: "wallpaper",
-			Cmd:   "wallpaper " + shell.Quote(filepath.Join(dir, name)),
+			Cmd:   setCmd + " " + shell.Quote(filepath.Join(dir, name)),
 		})
 	}
 	return acts

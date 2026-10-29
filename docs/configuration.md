@@ -1,11 +1,11 @@
 # Configuration
 
-Everything lives in `~/.config/neZha/`. Missing files are written with
+Everything lives in `~/.config/nzlauncher/`. Missing files are written with
 defaults on first run, and everything is read again on every launch, so
 edits apply the next time you open the launcher. No rebuild, no reload.
 
 ```
-~/.config/neZha/
+~/.config/nzlauncher/
   catalog.toml          settings + your static actions
   icons/nerd.toml       built-in icon library (copy it to make your own)
   theme/nz-tui.toml     TUI colors
@@ -25,7 +25,7 @@ gtk_mode = "overlay"    # overlay | window
 icon_library = "nerd"   # name of a file in icons/, without .toml
 ```
 
-`interface` picks the face that `nz bar` opens.
+`interface` picks the face that `nzlauncher bar` opens.
 
 `gtk_mode` only matters for the GTK face:
 
@@ -66,13 +66,13 @@ The defaults call some helper scripts (`screenshot`, `ocr`, `reminder`,
 ## Icon libraries
 
 The TUI shows a glyph next to each app. The glyphs come from an icon
-library, a TOML file in `~/.config/neZha/icons/`.
+library, a TOML file in `~/.config/nzlauncher/icons/`.
 
 The built-in one is `nerd.toml`. It maps about 250 common apps (plus
 common web apps like YouTube or Notion) and every freedesktop category
 to Nerd Font glyphs, all checked against the Nerd Fonts 3.4 glyph list.
 
-To use your own, create `~/.config/neZha/icons/<name>.toml` and set
+To use your own, create `~/.config/nzlauncher/icons/<name>.toml` and set
 `icon_library = "<name>"`. You only need the entries you want to
 change. Everything else falls back to the built-in set:
 
@@ -147,6 +147,6 @@ Leave a key out and its default is used.
 
 ## Data
 
-`~/.local/share/neZha/events.jsonl` is the learning log, one line per
+`~/.local/share/nzlauncher/events.jsonl` is the learning log, one line per
 pick. See [How it works](how-it-works.md). Delete it to start
 learning from scratch.

@@ -3,7 +3,7 @@
 There's no daemon and no cache. Every keystroke runs one function,
 `engine.Query`, which reads the catalog, scans `.desktop` files, asks
 Hyprland for open windows, replays the event log and ranks everything.
-Both faces and `nz query` call that same function.
+Both faces and `nzlauncher query` call that same function.
 
 ## Query routing
 
@@ -92,7 +92,7 @@ then on.
 
 ## The event log
 
-`~/.local/share/neZha/events.jsonl`, one JSON line per pick:
+`~/.local/share/nzlauncher/events.jsonl`, one JSON line per pick:
 
 ```json
 {"id":"app:org.mozilla.Thunderbird.desktop","ts":1791547200,"q":"email","ssid":"home-5g","focus":"com.mitchellh.ghostty"}

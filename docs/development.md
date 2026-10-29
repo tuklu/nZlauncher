@@ -10,7 +10,7 @@ sudo pacman -S go gtk4 gtk4-layer-shell
 # .github/workflows/ci.yml has the build-from-source steps.
 sudo apt install golang libgtk-4-dev libgirepository1.0-dev
 
-go build -o nz ./cmd/nz
+go build -o nzlauncher ./cmd/nzlauncher
 go vet ./...
 ```
 
@@ -23,19 +23,19 @@ from gotk4 and are harmless.
 To try a change without touching your installed copy:
 
 ```sh
-go build -o /tmp/nz ./cmd/nz
+go build -o /tmp/nz ./cmd/nzlauncher
 /tmp/nz query "turn off wifi"
 /tmp/nz tui
 ```
 
-`nz query` prints `id<TAB>cmd<TAB>display` for each result, which is
+`nzlauncher query` prints `id<TAB>cmd<TAB>display` for each result, which is
 the easiest way to check the engine. Saving its output for a set of
 queries before and after a change catches most regressions.
 
 ## Layout
 
 ```
-cmd/nz/                 CLI dispatch, the bar toggle, nz pick
+cmd/nzlauncher/                 CLI dispatch, the bar toggle, nzlauncher pick
 internal/
   action/               the Action type
   engine/               Query, match scoring, ranking, sentence grammar, fallbacks, calculator
@@ -101,7 +101,7 @@ is less work. See [Plugins](plugins.md).
 
 ## Gotchas
 
-- `nz query` output is tab separated. It strips tabs and newlines from
+- `nzlauncher query` output is tab separated. It strips tabs and newlines from
   the fields, but keep `Cmd` free of them anyway. `clipboard.go` passes
   only the cliphist id and decodes on pick for this reason.
 - `hyprctl` can't run Lua binds, they show up as `__lua` with an index.

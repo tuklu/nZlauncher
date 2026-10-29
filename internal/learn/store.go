@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/sysinfo"
 )
 
@@ -23,7 +24,7 @@ type Event struct {
 }
 
 func dataDir() string {
-	return filepath.Join(os.Getenv("HOME"), ".local/share/neZha")
+	return config.DataDir()
 }
 
 func eventsPath() string {

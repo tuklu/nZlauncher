@@ -7,15 +7,16 @@ import (
 	"strings"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/config"
 )
 
-// Community providers: drop an executable in ~/.config/neZha/providers.d/.
+// Community providers: drop an executable in ~/.config/nzlauncher/providers.d/.
 // Its filename is the trigger word; it is invoked with the rest of the query
 // as $1 and prints one action per line:
 //
 //	id <TAB> shell-command <TAB> display text
 func Plugin(word, q string) ([]action.Action, bool) {
-	path := filepath.Join(os.Getenv("HOME"), ".config/neZha/providers.d", word)
+	path := filepath.Join(config.Dir(), "providers.d", word)
 	info, err := os.Stat(path)
 	if err != nil || info.IsDir() || info.Mode()&0o111 == 0 {
 		return nil, false

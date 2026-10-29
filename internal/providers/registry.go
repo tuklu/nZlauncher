@@ -1,5 +1,5 @@
 // Package providers turns system state into actions: applications, windows,
-// devices, files, and anything in ~/.config/neZha/providers.d.
+// devices, files, and anything in ~/.config/nzlauncher/providers.d.
 package providers
 
 import (
