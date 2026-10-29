@@ -34,7 +34,7 @@ func fakeSocket(t *testing.T, serve func(net.Conn)) string {
 	return path
 }
 
-const swayTree = `{"id":1,"type":"root","nodes":[{"id":2,"type":"output","nodes":[{"id":3,"type":"workspace","nodes":[
+const swayTree = `{"id":1,"type":"root","nodes":[{"id":2,"type":"output","nodes":[{"id":3,"type":"workspace","name":"1","nodes":[
 	{"id":10,"type":"con","name":"notes - foot","app_id":"foot","focused":true,"nodes":[],"floating_nodes":[]},
 	{"id":11,"type":"con","name":"X app","app_id":null,"window_properties":{"class":"Xclock"},"nodes":[],"floating_nodes":[]}
 ],"floating_nodes":[{"id":12,"type":"floating_con","name":"float","app_id":"pavucontrol","nodes":[],"floating_nodes":[]}]}]}]}`
@@ -63,7 +63,7 @@ func TestSway(t *testing.T) {
 	t.Setenv("SWAYSOCK", path)
 
 	ws, err := sway.windows()
-	want := []Window{{"10", "foot", "notes - foot"}, {"11", "Xclock", "X app"}, {"12", "pavucontrol", "float"}}
+	want := []Window{{ID: "10", Class: "foot", Title: "notes - foot", Workspace: "1"}, {ID: "11", Class: "Xclock", Title: "X app", Workspace: "1"}, {ID: "12", Class: "pavucontrol", Title: "float", Workspace: "1"}}
 	if err != nil || !slices.Equal(ws, want) {
 		t.Fatalf("windows %+v, %v", ws, err)
 	}
@@ -119,7 +119,7 @@ func TestNiri(t *testing.T) {
 	t.Setenv("NIRI_SOCKET", path)
 
 	ws, err := niri.windows()
-	if err != nil || !slices.Equal(ws, []Window{{"7", "thunderbird", "mail"}, {"8", "foot", ""}}) {
+	if err != nil || !slices.Equal(ws, []Window{{ID: "7", Class: "thunderbird", Title: "mail", Workspace: "1"}, {ID: "8", Class: "foot", Title: ""}}) {
 		t.Fatalf("windows %+v, %v", ws, err)
 	}
 	if f, _ := niri.focused(); f.ID != "8" || f.Class != "foot" {

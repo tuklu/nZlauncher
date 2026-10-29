@@ -122,7 +122,12 @@ func parseDesktop(path, id string, lib *icons.Library) (action.Action, bool) {
 	if !found {
 		icon = lib.CategoryGlyph(byPriority(desktopCategories))
 	}
-	return action.Action{ID: "app:" + id, Name: name, Icon: icon, IconName: iconName, Group: "app", Keywords: keywords, Cmd: cmd}, true
+	class := wmClass
+	if class == "" {
+		class = strings.TrimSuffix(id, ".desktop") // what most apps set as their app id
+	}
+	return action.Action{ID: "app:" + id, Name: name, Icon: icon, IconName: iconName, Group: "app",
+		Keywords: keywords, Cmd: cmd, Class: class}, true
 }
 
 // Order is priority: the first match picks the category icon, so specific

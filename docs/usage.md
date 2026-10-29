@@ -57,6 +57,18 @@ Generic names, desktop keywords and categories are all indexed, so
 Open windows show up next to the app, so typing `ghostty` gives you
 both "switch to it" and "open another one".
 
+Windows are found by what is in them: the title, short names for what it
+shows (`yt` for YouTube, `gh` for GitHub, `vim` for nvim) and, for a
+window with a process of its own, the programs running inside it. So
+`switch to the workspace with my nvim`, `go to my yt window`, `take me to
+youtube` or `where is nvim` focus that window, which takes you to its
+workspace; the hint says which one. `ws 3` is still workspace 3.
+
+An app that is already open lists its window first: picking it switches
+there, and the app itself, one row down, opens another. A browser only
+shows its visible tab in the window title, so a YouTube tab in the
+background cannot be found.
+
 Windows and the `ws` results work on Hyprland, sway and niri, through each
 one's own socket. From a script: `nzlauncher ws 3` switches to workspace
 3, `nzlauncher ws move 3` sends the focused window there, `nzlauncher focus

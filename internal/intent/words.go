@@ -23,7 +23,7 @@ var synonyms = map[string]string{
 	"google": "search", "lookup": "search", "web": "search",
 	"locate": "find",
 	"pair":   "connect", "unpair": "disconnect",
-	"goto": "go", "jump": "go",
+	"goto": "go", "jump": "go", "take": "go", "bring": "go",
 	"timer": "remind", "remember": "remind", "reminder": "remind", "alarm": "remind",
 	"stop": "kill", "quit": "kill",
 

@@ -25,6 +25,10 @@ var hyprland = backend{
 			Class   string `json:"class"`
 			Title   string `json:"title"`
 			Mapped  bool   `json:"mapped"`
+			PID     int    `json:"pid"`
+			Space   struct {
+				Name string `json:"name"`
+			} `json:"workspace"`
 		}
 		if err := json.Unmarshal(out, &clients); err != nil {
 			return nil, err
@@ -32,7 +36,7 @@ var hyprland = backend{
 		var ws []Window
 		for _, c := range clients {
 			if c.Mapped {
-				ws = append(ws, Window{ID: c.Address, Class: c.Class, Title: c.Title})
+				ws = append(ws, Window{ID: c.Address, Class: c.Class, Title: c.Title, PID: c.PID, Workspace: c.Space.Name})
 			}
 		}
 		return ws, nil

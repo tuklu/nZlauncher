@@ -98,6 +98,7 @@ type swayNode struct {
 	Name     *string    `json:"name"`
 	AppID    *string    `json:"app_id"`
 	Focused  bool       `json:"focused"`
+	PID      int        `json:"pid"`
 	Nodes    []swayNode `json:"nodes"`
 	Floating []swayNode `json:"floating_nodes"`
 	Props    *struct {
@@ -111,7 +112,7 @@ func (n swayNode) window() (Window, bool) {
 	if !isWindow {
 		return Window{}, false
 	}
-	w := Window{ID: strconv.FormatInt(n.ID, 10)}
+	w := Window{ID: strconv.FormatInt(n.ID, 10), PID: n.PID}
 	if n.Name != nil {
 		w.Title = *n.Name
 	}
@@ -130,22 +131,26 @@ func swayWindows(tree []byte) (all []Window, focused Window, err error) {
 	if err := json.Unmarshal(tree, &root); err != nil {
 		return nil, Window{}, err
 	}
-	var walk func(swayNode)
-	walk = func(n swayNode) {
+	var walk func(swayNode, string)
+	walk = func(n swayNode, space string) {
+		if n.Type == "workspace" && n.Name != nil {
+			space = *n.Name
+		}
 		if w, ok := n.window(); ok {
+			w.Workspace = space
 			all = append(all, w)
 			if n.Focused {
 				focused = w
 			}
 		}
 		for _, c := range n.Nodes {
-			walk(c)
+			walk(c, space)
 		}
 		for _, c := range n.Floating {
-			walk(c)
+			walk(c, space)
 		}
 	}
-	walk(root)
+	walk(root, "")
 	return all, focused, nil
 }
 

@@ -77,17 +77,18 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 
 	case "open":
 		pool := keepGroups(append(actions, cache.windowList()...), "app", "window")
-		res := rank(pool, stats, ctx, arg)
+		res := openOnce(rank(pool, stats, ctx, arg))
 		if u, ok := urlAction(arg); ok {
 			res = append(res, u)
 		}
 		return res
 
-	case "switch", "go", "focus":
-		if rest[0].Canon == "workspace" {
-			return providers.Workspace(intent.RawJoin(rest[1:]))
+	case "switch", "go", "focus", "where", "show":
+		// "ws 3" by number; "the workspace with my nvim" is a window
+		if rest[0].Canon == "workspace" && len(rest) == 2 && isDigits(rest[1].Canon) {
+			return providers.Workspace(rest[1].Canon)
 		}
-		return rank(cache.windowList(), stats, ctx, arg)
+		return windowsFor(rest, stats, ctx)
 
 	case "connect", "disconnect":
 		// device entries from both radios; state decides connect vs disconnect
@@ -404,4 +405,28 @@ func isDigits(s string) bool {
 		}
 	}
 	return len(s) > 0
+}
+
+// windowWords frame a window search: "the workspace with my nvim", "my yt
+// window", "where is the youtube tab".
+var windowWords = map[string]bool{
+	"workspace": true, "window": true, "windows": true, "tab": true, "with": true, "is": true,
+	"has": true, "running": true, "app": true, "that": true, "of": true, "open": true,
+	"opened": true, "where": true, "me": true, "my": true, "the": true, "to": true, "one": true,
+}
+
+// windowsFor finds open windows by what the words say is in them; focusing
+// one takes you to its workspace. nil when no window fits, so the sentence
+// can still mean something else.
+func windowsFor(ws []intent.Word, stats map[string]learn.Stat, ctx queryContext) []action.Action {
+	var terms []string
+	for _, w := range ws {
+		if !windowWords[w.Canon] && w.Raw != "" {
+			terms = append(terms, strings.ToLower(w.Raw))
+		}
+	}
+	if len(terms) == 0 {
+		return nil
+	}
+	return rank(cache.windowList(), stats, ctx, strings.Join(terms, " "))
 }

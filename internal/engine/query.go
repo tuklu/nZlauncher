@@ -70,12 +70,13 @@ func QueryFor(raw, focusedClass string) ([]action.Action, error) {
 			ranked = append(ranked, found...)
 			ranked = append(ranked, fallbacks(raw, ctx.settings)...)
 		} else if nl := nlIntent(actions, stats, ctx, q); len(nl) > 0 {
-			ranked = append(append(ranked, nl...), fallbacks(raw, ctx.settings)...)
+			// a sentence that was understood is not a shell command too
+			ranked = append(append(ranked, nl...), withoutRun(fallbacks(raw, ctx.settings))...)
 		} else if provided, ok := providers.ByPrefix(strings.TrimSpace(raw)); ok {
 			ranked = append(append(ranked, provided...), fallbacks(raw, ctx.settings)...)
 		} else {
 			pool := append(actions, cache.windowList()...)
-			matched := withFiles(rank(pool, stats, ctx, q), q)
+			matched := withFiles(openOnce(rank(pool, stats, ctx, q)), q)
 			ranked = append(append(ranked, matched...), fallbacks(raw, ctx.settings)...)
 		}
 	}
@@ -246,6 +247,39 @@ func withFiles(ranked []action.Action, q string) []action.Action {
 		at++
 	}
 	return slices.Concat(ranked[:at], providers.FileActions(strong), ranked[at:])
+}
+
+func withoutRun(fb []action.Action) []action.Action {
+	var out []action.Action
+	for _, a := range fb {
+		if a.ID != "fallback:run" {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// openOnce puts an app's open window right above the app: picking the app
+// you already have open switches to it, and opening another is the next
+// row down. Windows and apps meet on the window class.
+func openOnce(ranked []action.Action) []action.Action {
+	out := make([]action.Action, 0, len(ranked))
+	moved := map[int]bool{}
+	for i, a := range ranked {
+		if moved[i] {
+			continue
+		}
+		if a.Group == "app" && a.Class != "" {
+			for j := i + 1; j < len(ranked); j++ {
+				if w := ranked[j]; w.Group == "window" && !moved[j] && strings.EqualFold(w.Class, a.Class) {
+					out = append(out, w)
+					moved[j] = true
+				}
+			}
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 // "f pdfs" goes to the file provider, which reads the rest itself; with the

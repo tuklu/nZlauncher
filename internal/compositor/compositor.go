@@ -16,6 +16,9 @@ type Window struct {
 	ID    string
 	Class string // app id or X11 class
 	Title string
+	PID   int
+	// Workspace is where the window is, as the compositor names it
+	Workspace string
 }
 
 type backend struct {

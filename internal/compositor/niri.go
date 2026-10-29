@@ -64,10 +64,18 @@ type niriWindow struct {
 	ID    uint64  `json:"id"`
 	Title *string `json:"title"`
 	AppID *string `json:"app_id"`
+	PID   *int    `json:"pid"`
+	Space *uint64 `json:"workspace_id"`
 }
 
 func (w niriWindow) window() Window {
 	out := Window{ID: strconv.FormatUint(w.ID, 10)}
+	if w.PID != nil {
+		out.PID = *w.PID
+	}
+	if w.Space != nil {
+		out.Workspace = strconv.FormatUint(*w.Space, 10)
+	}
 	if w.Title != nil {
 		out.Title = *w.Title
 	}

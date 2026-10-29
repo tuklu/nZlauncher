@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/tuklu/nZlauncher/internal/action"
@@ -26,10 +27,22 @@ func Windows() []action.Action {
 		return nil
 	}
 
+	// a window shares its process with others in single-instance apps
+	// (one Ghostty process for every terminal), and then what runs inside
+	// cannot be told apart per window: only the title says
+	pids := map[int]int{}
+	for _, c := range clients {
+		pids[c.PID]++
+	}
+
 	var acts []action.Action
 	for _, c := range clients {
 		if c.Title == "" || strings.HasPrefix(c.Class, identity.AppID) {
 			continue
+		}
+		keywords := append([]string{c.Class, "window", "switch", "focus"}, titleAliases(c.Title)...)
+		if c.PID > 0 && pids[c.PID] == 1 {
+			keywords = append(keywords, innerPrograms(c.PID)...)
 		}
 		title := []rune(c.Title)
 		if len(title) > 60 {
@@ -40,11 +53,70 @@ func Windows() []action.Action {
 			Name:     string(title),
 			Icon:     "󱂬",
 			Group:    "window",
-			Keywords: []string{c.Class, "window", "switch", "focus"},
+			Keywords: keywords,
+			Class:    c.Class,
+			Hint:     workspaceHint(c.Workspace),
 			Cmd:      "nzlauncher focus " + shell.Quote(c.ID),
 		})
 	}
 	return acts
+}
+
+func workspaceHint(space string) string {
+	if space == "" {
+		return "window"
+	}
+	return "workspace " + space
+}
+
+// aliases are what people call what shows in a title: "yt" for YouTube.
+var aliases = map[string][]string{
+	"youtube": {"yt"}, "github": {"gh"}, "gitlab": {"gl"}, "whatsapp": {"wa"},
+	"nvim": {"neovim", "vim", "editor"}, "neovim": {"nvim", "vim", "editor"},
+	"visual studio code": {"vscode", "code"}, "telegram": {"tg"}, "instagram": {"ig", "insta"},
+	"twitter": {"x"}, "chatgpt": {"gpt"}, "google docs": {"docs"}, "google meet": {"meet"},
+}
+
+func titleAliases(title string) []string {
+	lower := strings.ToLower(title)
+	var out []string
+	for name, short := range aliases {
+		if strings.Contains(lower, name) {
+			out = append(out, short...)
+		}
+	}
+	return out
+}
+
+// innerPrograms names what runs under a process, a few levels down: the
+// nvim, htop or ssh inside a terminal window.
+func innerPrograms(pid int) []string {
+	var names []string
+	var walk func(pid, depth int)
+	walk = func(pid, depth int) {
+		if depth > 4 || len(names) > 16 {
+			return
+		}
+		tasks, _ := filepath.Glob(fmt.Sprintf("/proc/%d/task/*/children", pid))
+		for _, t := range tasks {
+			data, err := os.ReadFile(t)
+			if err != nil {
+				continue
+			}
+			for _, field := range strings.Fields(string(data)) {
+				child, err := strconv.Atoi(field)
+				if err != nil {
+					continue
+				}
+				if comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", child)); err == nil {
+					names = append(names, strings.TrimSpace(string(comm)))
+				}
+				walk(child, depth+1)
+			}
+		}
+	}
+	walk(pid, 0)
+	return names
 }
 
 // kill [name] — user processes sorted by CPU, filtered by name.

@@ -17,6 +17,9 @@ type Action struct {
 	// Requires names programs the command needs besides its first word;
 	// a catalog entry whose programs are not installed is hidden.
 	Requires []string `toml:"requires"`
+	// Class is the window class an app's windows carry, or a window's own:
+	// it ties an app to its open windows. Not from the catalog.
+	Class string `toml:"-"`
 	// Unless hides an entry when one of these is installed: a portable
 	// screenshot entry gives way to neZha's screenshot script.
 	Unless []string `toml:"unless"`
