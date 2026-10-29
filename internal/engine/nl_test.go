@@ -28,6 +28,7 @@ func TestToggleWords(t *testing.T) {
 		"wifi off": "off wifi", "off wifi": "off wifi", "turn bluetooth on": "on bluetooth",
 		"disable bluetooth": "off bluetooth", "enable night light": "on night light",
 		"pdfs on monday": "", "firefox": "",
+		"turn on do not disturb": "on do not disturb", "nightlight off": "off nightlight",
 	}
 	for q, want := range cases {
 		state, domain, ok := toggleWords(intent.Content(intent.Words(q)))
@@ -64,6 +65,19 @@ func TestTypoMatch(t *testing.T) {
 	for q, want := range map[string]bool{"fierfox": true, "firfox": true, "fxzqw": false, "fire": false} {
 		if typoPrefix(words, q) != want {
 			t.Errorf("%q: want %v", q, want)
+		}
+	}
+}
+
+func TestProfileWords(t *testing.T) {
+	cases := map[string]string{
+		"performance mode": "performance", "power saver": "power-saver", "set power mode to balanced": "balanced",
+		"switch to performance": "performance", "power off": "", "performance review pdf": "",
+	}
+	for q, want := range cases {
+		got, _ := profileWords(intent.Content(intent.Words(q)))
+		if got != want {
+			t.Errorf("%q: got %q, want %q", q, got, want)
 		}
 	}
 }

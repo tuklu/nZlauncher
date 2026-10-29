@@ -49,6 +49,10 @@
 # kill = true
 # transcode = true
 # plugins = true          # executables in providers.d/
+# power = true            # power profiles
+# dnd = true              # do not disturb
+# nightlight = true
+# awake = true            # keep the screen from locking and blanking
 # units = true            # 5 km to miles, 72f in c
 # currency = true         # 100 usd to inr; the daemon fetches ECB rates
 #                         # from api.frankfurter.dev once a day, false stops it
@@ -68,4 +72,6 @@
 # wifi = "iwd"                       # iwd, networkmanager
 # compositor = "hyprland"
 # power = "power-profiles-daemon"    # power-profiles-daemon, tuned
-# notifications = "mako"
+# notifications = "mako"           # mako, swaync, dunst
+# nightlight = "hyprsunset"
+# idle = "hypridle"                 # whatever serves org.freedesktop.ScreenSaver

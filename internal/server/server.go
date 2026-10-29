@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -23,10 +24,11 @@ import (
 	"github.com/tuklu/nZlauncher/internal/engine"
 	"github.com/tuklu/nZlauncher/internal/files"
 	"github.com/tuklu/nZlauncher/internal/providers"
+	"github.com/tuklu/nZlauncher/internal/tweaks"
 )
 
 type Request struct {
-	Op      string `json:"op"`                // "query" or "ping"
+	Op      string `json:"op"`                // "query", "ping" or "awake"
 	Q       string `json:"q,omitempty"`       // the query text
 	Focused string `json:"focused,omitempty"` // class of the window the user came from
 }
@@ -149,6 +151,20 @@ func respond(req Request) Response {
 			return Response{Error: err.Error()}
 		}
 		return Response{OK: true, Results: results(acts)}
+	case "awake":
+		// "off", or how long in seconds, 0 for until turned off
+		var err error
+		if req.Q == "off" {
+			err = tweaks.AllowSleep()
+		} else if secs, convErr := strconv.Atoi(req.Q); convErr == nil && secs >= 0 {
+			err = tweaks.KeepAwake(time.Duration(secs) * time.Second)
+		} else {
+			err = errors.New("awake takes off or a number of seconds")
+		}
+		if err != nil {
+			return Response{Error: err.Error()}
+		}
+		return Response{OK: true}
 	}
 	return Response{Error: "unknown op: " + req.Op}
 }

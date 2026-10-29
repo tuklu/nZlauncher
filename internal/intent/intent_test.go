@@ -17,12 +17,16 @@ func date(y int, m time.Month, d int) time.Time {
 
 func TestWordsResolveSynonymsAndTypos(t *testing.T) {
 	cases := map[string][]string{
-		"launch firefox":       {"open", "firefox"},
-		"disable bluetoth":     {"off", "bluetooth"},
-		"louder":               {"volume", "up"},
-		"brigtness 40 percent": {"brightness", "40", "%"},
-		"fire":                 {"fire"}, // short words are never corrected
-		"screnshots yesterdy":  {"screenshots", "yesterday"},
+		"launch firefox":            {"open", "firefox"},
+		"disable bluetoth":          {"off", "bluetooth"},
+		"louder":                    {"volume", "up"},
+		"brigtness 40 percent":      {"brightness", "40", "%"},
+		"fire":                      {"fire"}, // short words are never corrected
+		"screnshots yesterdy":       {"screenshots", "yesterday"},
+		"turn on do not disturb":    {"turn", "on", "dnd"},
+		"keep the screen on for 2h": {"awake", "for", "2h"},
+		"Power Saver mode":          {"power-saver", "mode"},
+		"caffeine":                  {"awake"},
 	}
 	for q, want := range cases {
 		var got []string

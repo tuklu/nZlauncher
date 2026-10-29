@@ -42,7 +42,21 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 	if verb == "remind" || verb == "set" && len(rest) > 0 && rest[0].Canon == "remind" {
 		return reminderIntent(all)
 	}
+	// "performance mode", "power saver", "switch to balanced"
+	if profile, ok := profileWords(words); ok {
+		return providers.Power(profile)
+	}
+	// "keep awake for 2 hours", "awake 45m"
+	if verb == "awake" && len(rest) > 0 {
+		if d, n := intent.Duration(rest, 0); n > 0 {
+			return providers.Awake(d.String())
+		}
+	}
 	if len(words) == 1 && verb != "connect" && verb != "disconnect" {
+		// "do not disturb" is one word by now, but no prefix types it
+		if fn := domainProvider(verb); fn != nil && words[0].Raw != verb {
+			return fn("")
+		}
 		return nil
 	}
 
@@ -87,6 +101,10 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 
 	case "kill":
 		return providers.Kill(arg)
+
+	case "nightlight", "powermode", "dnd", "awake":
+		// "night light 3500", "power mode balanced"
+		return domainProvider(verb)(arg)
 	}
 	return nil
 }
@@ -123,7 +141,7 @@ func levelArg(ws []intent.Word) string {
 	return amount
 }
 
-var toggleDomains = map[string]bool{"wifi": true, "bluetooth": true}
+var toggleDomains = map[string]bool{"wifi": true, "bluetooth": true, "dnd": true, "nightlight": true, "awake": true}
 
 // toggleWords finds a state and what it applies to in any order. The state
 // must open or close the sentence ("on" in the middle is usually a date).
@@ -210,14 +228,45 @@ func domainProvider(domain string) func(string) []action.Action {
 		return providers.Bluetooth
 	case "monitor":
 		return providers.Monitor
+	case "dnd":
+		return providers.DND
+	case "nightlight":
+		return providers.Nightlight
+	case "awake":
+		return providers.Awake
+	case "powermode":
+		return providers.Power
 	}
 	return nil
+}
+
+var profileNames = map[string]bool{"power-saver": true, "balanced": true, "performance": true}
+
+// profileWords finds a power profile in a short sentence about power:
+// "performance mode", "power saver", "set powermode to balanced".
+func profileWords(ws []intent.Word) (string, bool) {
+	profile := ""
+	for _, w := range ws {
+		switch c := w.Canon; {
+		case profileNames[c]:
+			profile = c
+		case c == "mode" || c == "powermode" || c == "power" || c == "set" || c == "switch" || c == "on" || c == "go":
+		default:
+			return "", false
+		}
+	}
+	return profile, profile != ""
 }
 
 func toggleIntent(state, domain string, actions []action.Action) []action.Action {
 	canon := intent.Content(intent.Words(domain))
 	if len(canon) == 1 && toggleDomains[canon[0].Canon] {
-		return keepWord(domainProvider(canon[0].Canon)(""), state)
+		all := domainProvider(canon[0].Canon)("")
+		// already in that state: show what there is, its hint says so
+		if kept := keepWord(all, state); len(kept) > 0 {
+			return kept
+		}
+		return all
 	}
 	// catalog toggles: nightlight, idle, screensaver, bar...
 	var res []action.Action

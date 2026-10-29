@@ -42,6 +42,8 @@ var synonyms = map[string]string{
 	"increase": "up", "raise": "up", "higher": "up",
 	"decrease": "down", "lower": "down", "reduce": "down",
 	"percent": "%",
+
+	"caffeine": "awake", "saver": "power-saver", "powersave": "power-saver",
 }
 
 var fillerWords = map[string]bool{
@@ -64,6 +66,7 @@ var vocabulary = func() map[string]bool {
 		"today", "yesterday", "recent", "recently", "latest", "newest", "week", "month",
 		"year", "hours", "minutes", "older", "newer", "bigger", "larger", "smaller",
 		"since", "before", "after",
+		"dnd", "nightlight", "awake", "powermode", "performance", "balanced",
 	} {
 		v[w] = true
 	}
@@ -79,10 +82,65 @@ var vocabulary = func() map[string]bool {
 	return v
 }()
 
-// Words splits q into tokens with synonyms and typos resolved.
+// phrases are names of more than one word; each becomes one token.
+var phrases = []struct {
+	words []string
+	canon string
+}{
+	{[]string{"do", "not", "disturb"}, "dnd"},
+	{[]string{"focus", "mode"}, "dnd"},
+	{[]string{"night", "light"}, "nightlight"},
+	{[]string{"night", "mode"}, "nightlight"},
+	{[]string{"keep", "the", "screen", "on"}, "awake"},
+	{[]string{"keep", "screen", "on"}, "awake"},
+	{[]string{"keep", "awake"}, "awake"},
+	{[]string{"stay", "awake"}, "awake"},
+	{[]string{"power", "profile"}, "powermode"},
+	{[]string{"power", "mode"}, "powermode"},
+	{[]string{"power", "saver"}, "power-saver"},
+	{[]string{"power", "saving"}, "power-saver"},
+	{[]string{"battery", "saver"}, "power-saver"},
+}
+
+// joinPhrases folds the phrases among the typed tokens into single tokens.
+func joinPhrases(typed []string) []string {
+	var out []string
+	for i := 0; i < len(typed); i++ {
+		joined := false
+		for _, p := range phrases {
+			n := len(p.words)
+			if i+n > len(typed) {
+				continue
+			}
+			match := true
+			for k, w := range p.words {
+				if strings.ToLower(typed[i+k]) != w {
+					match = false
+					break
+				}
+			}
+			if match {
+				out = append(out, "\x00"+p.canon+"\x00"+strings.Join(typed[i:i+n], " "))
+				i += n - 1
+				joined = true
+				break
+			}
+		}
+		if !joined {
+			out = append(out, typed[i])
+		}
+	}
+	return out
+}
+
+// Words splits q into tokens with phrases, synonyms and typos resolved.
 func Words(q string) []Word {
 	var out []Word
-	for _, typed := range strings.Fields(q) {
+	for _, typed := range joinPhrases(strings.Fields(q)) {
+		if canon, raw, ok := strings.Cut(strings.TrimPrefix(typed, "\x00"), "\x00"); ok && strings.HasPrefix(typed, "\x00") {
+			out = append(out, Word{Raw: raw, Canon: canon})
+			continue
+		}
 		tok := strings.ToLower(typed)
 		canon := tok
 		if !vocabulary[tok] {

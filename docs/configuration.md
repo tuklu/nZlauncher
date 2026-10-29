@@ -46,8 +46,9 @@ A provider turned off disappears from its prefix word, from sentences that
 use it and from the first view. The providers are `apps`, `windows`,
 `bluetooth`, `wifi`, `audio`, `volume`, `brightness`, `monitor`,
 `workspace`, `wallpaper`, `clipboard`, `emoji`, `files`, `keys`, `kill`,
-`transcode` and `plugins` (everything in `providers.d/`), and the inline
-answers `units`, `currency`, `time` and `dates`.
+`transcode`, `plugins` (everything in `providers.d/`), the system tweaks
+`power`, `dnd`, `nightlight` and `awake`, and the inline answers `units`,
+`currency`, `time` and `dates`.
 
 `currency` is the only part that touches the network: the daemon fetches
 the European Central Bank's reference rates from
@@ -67,10 +68,18 @@ prints what it found:
 ```
 compositor     hyprland
 wifi           iwd
-power          power-profiles-daemon
+power          none found
 notifications  mako
+nightlight     hyprsunset
+idle           hypridle
+               TLP is installed: its tlp-pd package adds power profile switching
 distro         arch
 ```
+
+A power daemon that starts on demand counts as found unless its unit is
+masked, and is named by what really serves the API (power-profiles-daemon,
+tlp-pd or tuned-ppd). `idle` is whatever serves
+`org.freedesktop.ScreenSaver`, which is what keep awake talks to.
 
 When NetworkManager runs it is the one used for Wi-Fi, even when it drives
 iwd underneath. `[backends]` overrides any of them:

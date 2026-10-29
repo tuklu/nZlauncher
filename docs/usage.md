@@ -80,6 +80,14 @@ The first word can send the query to one provider:
 | `keys vol` | every Hyprland keybind, pick to run it |
 | `wallpaper`, `wp` | images in the `wallpaper_dir` setting, pick to set |
 | `transcode` | pick a media file, then a format and resolution |
+| `dnd` | do not disturb on or off (mako, swaync, dunst) |
+| `nightlight 3500`, `night` | warm the screen, or pick the temperature (hyprsunset) |
+| `awake 2h`, `caffeine` | keep the screen from locking and blanking, for a while or until turned off |
+| `profile`, `powermode` | power profiles, the current one marked (power-profiles-daemon, tlp-pd, tuned-ppd) |
+
+A tweak that can't work on this machine says why instead of doing
+nothing, for example power profiles with TLP but no `tlp-pd`. Keep awake
+is held by the daemon, so it needs `nzlauncher serve` running.
 
 If a full TUI for that area is installed (impala, bluetui, wiremix,
 btop, hyprmoncfg), the last entry opens it.
@@ -125,6 +133,7 @@ mean the same (`disable` is `off`, `launch` is `open`, `louder` is
 | `find` | `find catalog` (file search) |
 | `search`, `google` | `search rust traits` |
 | `kill`, `stop`, `quit` | `kill chrome` |
+| system | `turn on do not disturb`, `night light off`, `night light 3500`, `keep awake for 2 hours`, `keep the screen on`, `performance mode`, `power saver` |
 | `remind`, `timer` | `remind me in 20 minutes to stretch`, `remind me to call mum in 1h`, `timer 5m`, `set a timer for half an hour` |
 
 ### Files

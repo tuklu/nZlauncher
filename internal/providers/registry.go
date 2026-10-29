@@ -37,6 +37,10 @@ var prefixed = []struct {
 	{[]string{"emoji"}, Emoji},
 	{[]string{"keys", "binds", "shortcuts"}, Keys},
 	{[]string{"transcode", "convert"}, Transcode},
+	{[]string{"profile", "powermode"}, Power},
+	{[]string{"dnd"}, DND},
+	{[]string{"nightlight", "night"}, Nightlight},
+	{[]string{"awake", "caffeine"}, Awake},
 }
 
 // ByPrefix routes a query whose first word names a provider.
