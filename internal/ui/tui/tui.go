@@ -151,7 +151,7 @@ func (m *tuiModel) View() string {
 			icon = " "
 		}
 		name := a.Name
-		badge := a.Group
+		badge := a.Badge()
 
 		// room: marker(3) + icon col + gaps + badge + right margin
 		avail := w - lipgloss.Width(icon) - lipgloss.Width(badge) - 9

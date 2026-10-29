@@ -9,6 +9,19 @@ type Action struct {
 	Group    string   `toml:"group"`
 	Cmd      string   `toml:"cmd"`
 	Keywords []string `toml:"keywords"`
+	// Hint is the short right-hand column: a key combo, a size, a date.
+	// Faces show the group when it is empty.
+	Hint string `toml:"hint"`
+	// Preview is a file a face may show beside the list: an image, or text.
+	Preview string `toml:"-"`
+}
+
+// Badge is what goes in the right-hand column.
+func (a Action) Badge() string {
+	if a.Hint != "" {
+		return a.Hint
+	}
+	return a.Group
 }
 
 func (a Action) Display() string {

@@ -239,7 +239,7 @@ func buildWindow(app *gtk.Application, mode string, resident bool, picked *strin
 			name.SetEllipsize(3) // PANGO_ELLIPSIZE_END
 			h.Append(name)
 
-			badge := gtk.NewLabel(a.Group)
+			badge := gtk.NewLabel(a.Badge())
 			badge.AddCSSClass("nz-badge")
 			h.Append(badge)
 

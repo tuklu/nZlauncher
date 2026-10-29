@@ -54,11 +54,12 @@ func Keys(q string) []action.Action {
 		if len(mods) > 0 {
 			combo = strings.Join(mods, "+") + " + " + b.Key
 		}
+		pretty := prettyCombo(b.Modmask, b.Key)
 
 		what := b.Description
 		cmd := "true"
 		switch {
-		case b.Dispatcher != "__lua":
+		case !isLuaBind(b.Dispatcher):
 			if what == "" {
 				what = strings.TrimSpace(b.Dispatcher + " " + b.Arg)
 			}
@@ -83,14 +84,16 @@ func Keys(q string) []action.Action {
 			}
 			cmd = lb.cmd
 		}
-		name := fmt.Sprintf("%-28s %s", combo, what)
-
-		if q != "" && !strings.Contains(strings.ToLower(name), q) {
+		name := humanize(what)
+		// the combo is searchable both ways it is written
+		haystack := strings.ToLower(name + " " + pretty + " " + combo + " " + what)
+		if q != "" && !strings.Contains(haystack, q) {
 			continue
 		}
 
 		acts = append(acts, action.Action{
 			ID: "key:" + combo, Name: name, Icon: "󰌌", Group: "keys", Cmd: cmd,
+			Hint: pretty, Keywords: []string{combo, what},
 		})
 	}
 	return acts
@@ -339,4 +342,92 @@ func splitArgs(src string, pos int) ([]string, int) {
 
 func isIdentByte(c byte) bool {
 	return c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
+}
+
+var modifierLabels = []struct {
+	bit   int
+	label string
+}{{64, "Super"}, {4, "Ctrl"}, {8, "Alt"}, {1, "Shift"}}
+
+// Names for keys people do not know by their keysym.
+var keyLabels = map[string]string{
+	"xf86audioraisevolume": "Volume Up", "xf86audiolowervolume": "Volume Down",
+	"xf86audiomute": "Mute", "xf86audiomicmute": "Mic Mute",
+	"xf86audioplay": "Play", "xf86audiopause": "Pause", "xf86audiostop": "Stop",
+	"xf86audionext": "Next Track", "xf86audioprev": "Previous Track",
+	"xf86monbrightnessup": "Brightness Up", "xf86monbrightnessdown": "Brightness Down",
+	"xf86kbdbrightnessup": "Keyboard Light Up", "xf86kbdbrightnessdown": "Keyboard Light Down",
+	"xf86kbdlightonoff":  "Keyboard Light",
+	"xf86touchpadtoggle": "Touchpad", "xf86touchpadon": "Touchpad On", "xf86touchpadoff": "Touchpad Off",
+	"xf86poweroff": "Power", "xf86calculator": "Calculator", "xf86search": "Search",
+	"return": "Enter", "escape": "Esc", "space": "Space", "tab": "Tab",
+	"backspace": "Backspace", "delete": "Delete", "print": "Print",
+	"left": "←", "right": "→", "up": "↑", "down": "↓",
+	"period": ".", "comma": ",", "slash": "/", "minus": "-", "equal": "=",
+	"bracketleft": "[", "bracketright": "]", "semicolon": ";", "apostrophe": "'", "grave": "`",
+	"mouse_down": "Scroll Down", "mouse_up": "Scroll Up", "mouse_left": "Scroll Left", "mouse_right": "Scroll Right",
+	"mouse:272": "Left Click", "mouse:273": "Right Click", "mouse:274": "Middle Click",
+	// keycodes some layouts bind by: the number row and a few symbols
+	"code:10": "1", "code:11": "2", "code:12": "3", "code:13": "4", "code:14": "5",
+	"code:15": "6", "code:16": "7", "code:17": "8", "code:18": "9", "code:19": "0",
+	"code:20": "-", "code:21": "=", "code:59": ",", "code:60": ".", "code:61": "/",
+}
+
+// "Super Shift B", "Volume Up", "Ctrl Alt ←"
+func prettyCombo(modmask int, key string) string {
+	var parts []string
+	for _, m := range modifierLabels {
+		if modmask&m.bit != 0 {
+			parts = append(parts, m.label)
+		}
+	}
+	label, ok := keyLabels[strings.ToLower(key)]
+	switch {
+	case ok:
+	case strings.HasPrefix(key, "XF86"):
+		label = splitCamel(strings.TrimPrefix(key, "XF86"))
+	case len(key) == 1:
+		label = strings.ToUpper(key)
+	default:
+		label = strings.ToUpper(key[:1]) + strings.ToLower(key[1:])
+	}
+	return strings.Join(append(parts, label), " ")
+}
+
+func splitCamel(s string) string {
+	var b strings.Builder
+	for i, r := range s {
+		if i > 0 && r >= 'A' && r <= 'Z' {
+			b.WriteByte(' ')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+var luaCall = regexp.MustCompile(`^(?:\w+\.)*(\w+)\((.*)\)$`)
+
+// Readable text for a bind without a description: Lua calls become words
+// ("actions.toggle_touchpad("on")" is "Toggle touchpad on"); shell commands
+// stay as they are, they already read as what they do.
+func humanize(what string) string {
+	m := luaCall.FindStringSubmatch(strings.TrimSpace(what))
+	if m == nil {
+		return what
+	}
+	words := strings.ReplaceAll(m[1], "_", " ")
+	args := strings.Trim(strings.NewReplacer(`"`, "", "'", "", "{", "", "}", "").Replace(m[2]), " ")
+	if args != "" {
+		words += " " + args
+	}
+	return strings.ToUpper(words[:1]) + words[1:]
+}
+
+// Lua-configured Hyprland reports a bind's action as "__lua" (0.56), or as
+// "HL.Dispatcher(name)" or "function: 0x..." (0.57); the real action is only
+// in the config source.
+func isLuaBind(dispatcher string) bool {
+	return dispatcher == "__lua" ||
+		strings.HasPrefix(dispatcher, "HL.Dispatcher(") ||
+		strings.HasPrefix(dispatcher, "function:")
 }

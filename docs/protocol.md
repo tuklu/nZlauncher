@@ -37,7 +37,10 @@ any number of requests.
 ```
 
 Results are already ranked. `display` is `icon` and `name` joined the way
-the built-in faces show them. To run a result, run `cmd` with `sh -c`.
+the built-in faces show them. `hint` is the short text for a right-hand
+column (a key combo, a size, a date; show `group` when it is missing), and
+`preview`, when present, is a file worth showing beside the list: an image
+or a text file. To run a result, run `cmd` with `sh -c`.
 
 ## Learning
 

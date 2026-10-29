@@ -34,6 +34,8 @@ type Result struct {
 	Group    string `json:"group,omitempty"`
 	Cmd      string `json:"cmd"`
 	Display  string `json:"display"`
+	Hint     string `json:"hint,omitempty"`
+	Preview  string `json:"preview,omitempty"`
 }
 
 type Response struct {
@@ -129,7 +131,7 @@ func answer(req Request) Response {
 func results(acts []action.Action) []Result {
 	out := make([]Result, len(acts))
 	for i, a := range acts {
-		out[i] = Result{ID: a.ID, Name: a.Name, Icon: a.Icon, IconName: a.IconName, Group: a.Group, Cmd: a.Cmd, Display: a.Display()}
+		out[i] = Result{ID: a.ID, Name: a.Name, Icon: a.Icon, IconName: a.IconName, Group: a.Group, Cmd: a.Cmd, Display: a.Display(), Hint: a.Hint, Preview: a.Preview}
 	}
 	return out
 }
