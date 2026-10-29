@@ -1,0 +1,33 @@
+# Maintainer: tuklu
+# The CI release binary, so installing needs no Go and no GTK binding compile.
+pkgname=nzlauncher-bin
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="Launcher for Hyprland that learns how you use it (prebuilt)"
+arch=('x86_64')
+url="https://github.com/tuklu/nZlauncher"
+license=('MIT')
+depends=('gtk4' 'gtk4-layer-shell' 'glib2' 'hyprland')
+optdepends=(
+  'ghostty: TUI face'
+  'cliphist: clipboard provider'
+  'wl-clipboard: clipboard provider, copying results'
+  'bluez-utils: bluetooth provider'
+  'iwd: wifi provider'
+  'fd: file search'
+  'fzf: nzlauncher pick'
+  'hyprmoncfg: monitor provider'
+  'swaybg: default wallpaper command'
+)
+provides=('nzlauncher')
+conflicts=('nzlauncher' 'nzlauncher-git')
+options=('!strip' '!debug')
+source=("nzlauncher-$pkgver::$url/releases/download/v$pkgver/nzlauncher-linux-amd64"
+        "LICENSE-$pkgver::https://raw.githubusercontent.com/tuklu/nZlauncher/v$pkgver/LICENSE")
+sha256sums=('59dad4377423e7f7cd7e8289026abca08ed679629f8ad3e61ff66c8dfd8c34ff'
+            'cffff6a257a267deefebc1866d636e5f1bd098550007dcd75e8de8fbb38375dc')
+
+package() {
+  install -Dm755 "nzlauncher-$pkgver" "$pkgdir/usr/bin/nzlauncher"
+  install -Dm644 "LICENSE-$pkgver" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

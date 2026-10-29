@@ -36,6 +36,16 @@ executable in `providers.d/` and its name becomes a new prefix word.
 
 ## Install
 
+On Arch, build a package from `packaging/`: `arch-bin` installs the release
+binary in seconds, `arch` builds from source (the first build compiles the
+GTK bindings and takes a while).
+
+```sh
+git clone https://github.com/tuklu/nZlauncher && cd nZlauncher/packaging/arch-bin && makepkg -si
+```
+
+Anywhere else:
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tuklu/nZlauncher/main/install.sh | bash
 ```
