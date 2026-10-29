@@ -4,14 +4,15 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/tuklu/nZlauncher/internal/action"
-	"github.com/tuklu/nZlauncher/internal/engine"
 	"github.com/tuklu/nZlauncher/internal/learn"
+	"github.com/tuklu/nZlauncher/internal/server"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
@@ -40,7 +41,7 @@ func Run(initial string) error {
 }
 
 func (m *tuiModel) refresh() {
-	acts, err := engine.Query(m.query)
+	acts, err := server.Query(m.query, os.Getenv("NZ_FOCUSED"))
 	if err != nil {
 		acts = nil
 	}

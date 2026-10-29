@@ -5,7 +5,10 @@ package gtk
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+	"strings"
 
 	layershell "github.com/diamondburned/gotk4-layer-shell/pkg/gtk4layershell"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -15,7 +18,6 @@ import (
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/config"
-	"github.com/tuklu/nZlauncher/internal/engine"
 	"github.com/tuklu/nZlauncher/internal/identity"
 	"github.com/tuklu/nZlauncher/internal/learn"
 	"github.com/tuklu/nZlauncher/internal/server"
@@ -75,6 +77,16 @@ window.nz {
 }
 .nz-name {
   font-size: 14px;
+}
+.nz-preview {
+  margin: 0 14px 10px 0;
+  padding: 8px;
+  border-radius: 10px;
+  background: alpha(currentColor, 0.05);
+}
+.nz-preview-text {
+  font-family: monospace;
+  font-size: 11px;
 }
 .nz-badge {
   font-size: 11px;
@@ -169,9 +181,17 @@ func buildWindow(app *gtk.Application, mode string, resident bool, picked *strin
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	scroll.SetChild(list)
 
+	// beside the list: the selected result's image or text, when it has one
+	pv := newPreviewPane()
+	body := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	body.SetVExpand(true)
+	scroll.SetHExpand(true)
+	body.Append(scroll)
+	body.Append(pv.root)
+
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.Append(entry)
-	box.Append(scroll)
+	box.Append(body)
 	win.SetChild(box)
 
 	var actions []action.Action
@@ -213,7 +233,7 @@ func buildWindow(app *gtk.Application, mode string, resident bool, picked *strin
 		}
 		rows = rows[:0]
 
-		acts, err := engine.QueryFor(entry.Text(), f.focused)
+		acts, err := server.Query(entry.Text(), f.focused)
 		if err != nil {
 			acts = nil
 		}
@@ -241,6 +261,9 @@ func buildWindow(app *gtk.Application, mode string, resident bool, picked *strin
 
 			badge := gtk.NewLabel(a.Badge())
 			badge.AddCSSClass("nz-badge")
+			// the name wins the space: a long hint gives way from its left
+			badge.SetEllipsize(1) // PANGO_ELLIPSIZE_START
+			badge.SetMaxWidthChars(32)
 			h.Append(badge)
 
 			row := gtk.NewListBoxRow()
@@ -265,6 +288,14 @@ func buildWindow(app *gtk.Application, mode string, resident bool, picked *strin
 			entry.GrabFocus()
 		}
 	}
+
+	list.ConnectRowSelected(func(row *gtk.ListBoxRow) {
+		if row == nil || row.Index() >= len(actions) {
+			pv.show("")
+			return
+		}
+		pv.show(actions[row.Index()].Preview)
+	})
 
 	entry.ConnectSearchChanged(refresh)
 	entry.ConnectActivate(func() {
@@ -299,4 +330,87 @@ func buildWindow(app *gtk.Application, mode string, resident bool, picked *strin
 
 	f.refresh = refresh
 	return f
+}
+
+// previewPane shows an image or the start of a text file.
+type previewPane struct {
+	root    *gtk.Box
+	picture *gtk.Picture
+	text    *gtk.Label
+	scroll  *gtk.ScrolledWindow
+	frame   *gtk.ScrolledWindow // holds the picture without passing its size up
+	path    string
+}
+
+const previewBytes = 4096
+
+func newPreviewPane() *previewPane {
+	pv := &previewPane{root: gtk.NewBox(gtk.OrientationVertical, 0), picture: gtk.NewPicture(), text: gtk.NewLabel("")}
+	pv.root.AddCSSClass("nz-preview")
+	pv.root.SetSizeRequest(300, -1)
+	pv.root.SetHExpand(false)
+	pv.picture.SetContentFit(gtk.ContentFitContain)
+	pv.picture.SetCanShrink(true)
+	// a big image would otherwise ask for its full size and squeeze the list
+	pv.frame = gtk.NewScrolledWindow()
+	pv.frame.SetPolicy(gtk.PolicyNever, gtk.PolicyNever)
+	pv.frame.SetPropagateNaturalWidth(false)
+	pv.frame.SetPropagateNaturalHeight(false)
+	pv.frame.SetVExpand(true)
+	pv.frame.SetSizeRequest(300, -1)
+	pv.frame.SetChild(pv.picture)
+	pv.text.AddCSSClass("nz-preview-text")
+	pv.text.SetXAlign(0)
+	pv.text.SetYAlign(0)
+	pv.text.SetWrap(true)
+	pv.text.SetWrapMode(2) // PANGO_WRAP_WORD_CHAR: long lines break anywhere
+	pv.text.SetMaxWidthChars(36)
+	// text scrolls inside the pane; the pane itself never grows
+	pv.scroll = gtk.NewScrolledWindow()
+	pv.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	pv.scroll.SetVExpand(true)
+	pv.scroll.SetPropagateNaturalWidth(false)
+	pv.scroll.SetSizeRequest(300, -1)
+	pv.scroll.SetChild(pv.text)
+	pv.root.Append(pv.frame)
+	pv.root.Append(pv.scroll)
+	pv.root.SetVisible(false)
+	return pv
+}
+
+func (pv *previewPane) show(path string) {
+	if path == pv.path {
+		return
+	}
+	pv.path = path
+	if path == "" {
+		pv.root.SetVisible(false)
+		return
+	}
+	if isImage(path) {
+		pv.picture.SetFilename(path)
+		pv.frame.SetVisible(true)
+		pv.scroll.SetVisible(false)
+	} else {
+		f, err := os.Open(path)
+		if err != nil {
+			pv.root.SetVisible(false)
+			return
+		}
+		buf := make([]byte, previewBytes)
+		n, _ := io.ReadFull(f, buf)
+		f.Close()
+		pv.text.SetText(strings.ToValidUTF8(string(buf[:n]), "?"))
+		pv.scroll.SetVisible(true)
+		pv.frame.SetVisible(false)
+	}
+	pv.root.SetVisible(true)
+}
+
+func isImage(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".bmp":
+		return true
+	}
+	return false
 }

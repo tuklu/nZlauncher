@@ -47,17 +47,18 @@ func Files(q string) []action.Action {
 	// shorter paths first: ~/notes.md beats a deep vendored hit
 	sort.SliceStable(paths, func(i, j int) bool { return len(paths[i]) < len(paths[j]) })
 
-	var acts []action.Action
+	var hits []files.Hit
 	for _, path := range paths {
-		if path == "" {
+		info, err := os.Stat(path)
+		if path == "" || err != nil {
 			continue
 		}
-		acts = append(acts, fileAction(path))
-		if len(acts) == 25 {
+		hits = append(hits, files.Hit{Path: path, Size: info.Size(), ModTime: info.ModTime()})
+		if len(hits) == 25 {
 			break
 		}
 	}
-	return acts
+	return FileActions(hits)
 }
 
 func fileAction(path string) action.Action {

@@ -227,3 +227,22 @@ func startFileIndex() {
 	}
 	files.Start(c)
 }
+
+// Query is what a face calls per keystroke: the daemon's answer when it
+// runs, so every frontend shares its index and caches, otherwise the engine
+// in this process.
+func Query(q, focused string) ([]action.Action, error) {
+	resp, err := Ask(Request{Op: "query", Q: q, Focused: focused})
+	if err != nil && resp.Error == "" {
+		return engine.QueryFor(q, focused)
+	}
+	if err != nil {
+		return nil, err
+	}
+	acts := make([]action.Action, len(resp.Results))
+	for i, r := range resp.Results {
+		acts[i] = action.Action{ID: r.ID, Name: r.Name, Icon: r.Icon, IconName: r.IconName,
+			Group: r.Group, Cmd: r.Cmd, Hint: r.Hint, Preview: r.Preview}
+	}
+	return acts, nil
+}
