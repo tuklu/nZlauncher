@@ -17,7 +17,9 @@ import (
 	"time"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/engine"
+	"github.com/tuklu/nZlauncher/internal/files"
 	"github.com/tuklu/nZlauncher/internal/providers"
 )
 
@@ -87,6 +89,7 @@ func Serve() error {
 	}()
 	defer os.Remove(path)
 
+	startFileIndex()
 	engine.Warm()
 	go func() {
 		providers.PruneClipCache()
@@ -208,4 +211,19 @@ func ListenFace() (net.Listener, error) {
 		return nil, err
 	}
 	return ln, nil
+}
+
+// The file index lives as long as the daemon, with config.toml's roots and
+// excludes when set.
+func startFileIndex() {
+	c := files.DefaultConfig()
+	if s, err := config.LoadSettings(); err == nil {
+		if roots := s.FileRoots(); len(roots) > 0 {
+			c.Roots = roots
+		}
+		if len(s.Files.Exclude) > 0 {
+			c.Exclude = s.Files.Exclude
+		}
+	}
+	files.Start(c)
 }

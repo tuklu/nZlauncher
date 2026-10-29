@@ -22,6 +22,9 @@ type Catalog struct {
 }
 
 func ExpandHome(p string) string {
+	if p == "~" {
+		return os.Getenv("HOME")
+	}
 	if rest, ok := strings.CutPrefix(p, "~/"); ok {
 		return filepath.Join(os.Getenv("HOME"), rest)
 	}

@@ -32,6 +32,11 @@ type Settings struct {
 		URL string `toml:"url"`
 	} `toml:"search"`
 
+	Files struct {
+		Roots   []string `toml:"roots"`
+		Exclude []string `toml:"exclude"`
+	} `toml:"files"`
+
 	Providers map[string]bool `toml:"providers"`
 	Fallbacks map[string]bool `toml:"fallbacks"`
 }
@@ -120,4 +125,13 @@ func (s Settings) Provider(name string) bool {
 func (s Settings) Fallback(name string) bool {
 	on, set := s.Fallbacks[name]
 	return !set || on
+}
+
+// FileRoots and FileExclude are nil when unset, so the index keeps its defaults.
+func (s Settings) FileRoots() []string {
+	var roots []string
+	for _, r := range s.Files.Roots {
+		roots = append(roots, ExpandHome(r))
+	}
+	return roots
 }

@@ -2,14 +2,17 @@ package providers
 
 import (
 	"encoding/xml"
+	"fmt"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/files"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
@@ -20,6 +23,9 @@ func Files(q string) []action.Action {
 	}
 	if q == "" {
 		return recentFiles(15)
+	}
+	if hits, ok := files.Search(files.Filter{Terms: strings.Fields(strings.ToLower(q))}); ok {
+		return FileActions(hits)
 	}
 
 	args := []string{"--type", "f", "--hidden", "--max-results", "40"}
@@ -55,17 +61,97 @@ func Files(q string) []action.Action {
 }
 
 func fileAction(path string) action.Action {
-	display := path
-	if home := os.Getenv("HOME"); strings.HasPrefix(path, home) {
-		display = "~" + strings.TrimPrefix(path, home)
-	}
 	return action.Action{
 		ID:    "file:" + path,
-		Name:  display,
-		Icon:  "󰈔",
+		Name:  tilde(path),
+		Icon:  fileIcon(path),
 		Group: "file",
 		Cmd:   "uwsm-app -- xdg-open " + shell.Quote(path),
 	}
+}
+
+// FileActions turns index hits into results: the name first, where it is,
+// how old and how big as the hint, and a preview for images and text.
+func FileActions(hits []files.Hit) []action.Action {
+	acts := make([]action.Action, 0, len(hits))
+	now := time.Now()
+	for _, h := range hits {
+		a := fileAction(h.Path)
+		a.Name = filepath.Base(h.Path)
+		a.Hint = tilde(filepath.Dir(h.Path)) + " · " + age(now.Sub(h.ModTime)) + " · " + humanSize(h.Size)
+		a.Keywords = []string{h.Path}
+		if previewable(h.Path) {
+			a.Preview = h.Path
+		}
+		acts = append(acts, a)
+	}
+	return acts
+}
+
+func tilde(path string) string {
+	if home := os.Getenv("HOME"); path == home || strings.HasPrefix(path, home+"/") {
+		return "~" + strings.TrimPrefix(path, home)
+	}
+	return path
+}
+
+func age(d time.Duration) string {
+	switch {
+	case d < time.Hour:
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	case d < 48*time.Hour:
+		return fmt.Sprintf("%dh", int(d.Hours()))
+	case d < 60*24*time.Hour:
+		return fmt.Sprintf("%dd", int(d.Hours()/24))
+	case d < 2*365*24*time.Hour:
+		return fmt.Sprintf("%dmo", int(d.Hours()/24/30))
+	}
+	return fmt.Sprintf("%dy", int(d.Hours()/24/365))
+}
+
+func humanSize(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
+}
+
+var imageExts = map[string]bool{"png": true, "jpg": true, "jpeg": true, "webp": true, "gif": true, "svg": true, "bmp": true}
+var textExts = map[string]bool{"txt": true, "md": true, "go": true, "py": true, "c": true, "h": true, "rs": true, "lua": true,
+	"sh": true, "toml": true, "json": true, "yaml": true, "yml": true, "conf": true, "js": true, "ts": true, "css": true, "html": true}
+
+func extOf(path string) string {
+	return strings.ToLower(strings.TrimPrefix(filepath.Ext(path), "."))
+}
+
+func previewable(path string) bool {
+	ext := extOf(path)
+	return imageExts[ext] || textExts[ext]
+}
+
+func fileIcon(path string) string {
+	ext := extOf(path)
+	switch {
+	case imageExts[ext]:
+		return "󰋩"
+	case ext == "pdf":
+		return "󰈦"
+	case textExts[ext]:
+		return "󰈙"
+	case ext == "mp4" || ext == "mkv" || ext == "webm" || ext == "mov":
+		return "󰈫"
+	case ext == "mp3" || ext == "flac" || ext == "ogg" || ext == "wav" || ext == "m4a":
+		return "󰈣"
+	case ext == "zip" || ext == "tar" || ext == "gz" || ext == "xz" || ext == "zst" || ext == "7z":
+		return "󰗄"
+	}
+	return "󰈔"
 }
 
 func recentFiles(n int) []action.Action {

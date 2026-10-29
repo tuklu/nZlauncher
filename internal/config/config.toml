@@ -22,6 +22,13 @@
 # Web search fallback; %s is replaced by the query.
 # url = "https://www.google.com/search?q=%s"
 
+[files]
+# What file search indexes. Exclude names a directory anywhere ("target") or
+# a path below a root ("go/pkg"). Leaving exclude out keeps the built-in list
+# of caches, dependency trees and build output.
+# roots = ["~"]
+# exclude = [".git", ".cache", "node_modules", "go/pkg", "target"]
+
 [providers]
 # Set any to false to turn it off everywhere: its prefix word, sentences
 # that use it, and the first view.
