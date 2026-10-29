@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 
+	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/identity"
 	"github.com/tuklu/nZlauncher/internal/server"
@@ -42,6 +44,7 @@ func runBar(initial string) error {
 	cmd := exec.Command("ghostty",
 		"--class="+identity.TUIClass,
 		"--gtk-single-instance=false",
+		solidConfig(),
 		"--window-padding-x=12",
 		"--window-padding-y=10",
 		"-e", self, "tui", initial)
@@ -61,4 +64,19 @@ func focusedClass() string {
 	}
 	json.Unmarshal(out, &w)
 	return w.Class
+}
+
+// solidConfig makes the launcher's terminal window solid, whatever the
+// terminal theme says: text behind a launcher makes it unreadable. A plain
+// --background-opacity loses to a theme pulled in with config-file, which
+// Ghostty reads after the flags; a config-file given here is read after the
+// theme, so it wins.
+func solidConfig() string {
+	path := filepath.Join(config.CacheDir(), "ghostty-solid.conf")
+	const body = "background-opacity = 1\n"
+	if current, err := os.ReadFile(path); err != nil || string(current) != body {
+		os.MkdirAll(filepath.Dir(path), 0o700)
+		os.WriteFile(path, []byte(body), 0o600)
+	}
+	return "--config-file=" + path
 }

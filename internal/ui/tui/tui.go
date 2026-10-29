@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -15,6 +16,9 @@ import (
 	"github.com/tuklu/nZlauncher/internal/server"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
+
+// settledMsg redraws once the window size has held, see sizeSettled.
+type settledMsg struct{}
 
 // Look is driven by ~/.config/nzlauncher/theme/nz-tui.toml.
 type tuiModel struct {
@@ -32,7 +36,9 @@ type tuiModel struct {
 func Run(initial string) error {
 	m := &tuiModel{query: initial, width: 80, height: 16, st: buildStyles(loadTheme())}
 	m.refresh()
-	_, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
+	program := tea.NewProgram(m, tea.WithAltScreen())
+	redraw = func() { program.Send(settledMsg{}) }
+	_, err := program.Run()
 	fmt.Print(clearImage())
 	if err != nil {
 		return err
@@ -59,7 +65,11 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		sized = true
+		lastResize = time.Now()
+		// draw again once the size has settled, for the image
+		return m, tea.Tick(settleFor, func(time.Time) tea.Msg { return settledMsg{} })
+
+	case settledMsg:
 
 	case tea.KeyMsg:
 		switch msg.Type {

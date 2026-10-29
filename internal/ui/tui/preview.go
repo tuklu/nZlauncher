@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/sys/unix"
@@ -32,9 +33,24 @@ type preview struct {
 	// an image the terminal can draw: pixel size, and a PNG of it
 	imgW, imgH int
 	png        string
-	sent       string // what the terminal has: path and cell size
-	id         int    // the image id it has it under
+	sent       string    // what the terminal has: path and cell size
+	id         int       // the image id it has it under
+	sentAt     time.Time // placeholders follow a beat after, see imageCells
+	replaced   bool      // the placement was sent again once it had time to load
 }
+
+// redraw asks the TUI for another frame; set by Run.
+var redraw = func() {}
+
+// The image is sent in one frame and drawn the next: Ghostty loads it in
+// the background, and placeholders that arrive with the image sometimes
+// stay blank until something else on screen changes.
+const drawAfter = 60 * time.Millisecond
+
+// A big image on a busy machine can take longer than that to decode, and
+// Ghostty does not repaint the waiting cells when it is done. Placing it
+// again, which carries no image data, makes it look once more.
+const placeAgainAfter = 400 * time.Millisecond
 
 func loadPreview(path string) preview {
 	p := preview{path: path}
@@ -77,9 +93,17 @@ func loadPreview(path string) preview {
 	return p
 }
 
-// sized is set once the terminal has said how big it is: an image sent
-// at the guessed size before that would be sent again a frame later.
-var sized bool
+// lastResize is when the terminal last said how big it is. An image is
+// sent only once the size has held for a moment: a window opens small and
+// the compositor resizes it a beat later, and an image sent and replaced
+// within that beat sometimes never shows.
+var lastResize time.Time
+
+const settleFor = 150 * time.Millisecond
+
+func sizeSettled() bool {
+	return !lastResize.IsZero() && time.Since(lastResize) >= settleFor
+}
 
 // render fits the preview into width by height, border included.
 func (p *preview) render(st tuiStyles, width, height int) string {
@@ -90,7 +114,7 @@ func (p *preview) render(st tuiStyles, width, height int) string {
 		Padding(0, 1).
 		Width(width - 2).
 		Height(max(height-2, 1))
-	if p.png != "" && p.imgW > 0 && p.imgH > 0 && sized {
+	if p.png != "" && p.imgW > 0 && p.imgH > 0 && sizeSettled() {
 		// not styled: the placeholders' colour is the image id
 		return box.Render(p.imageCells(inner, height-2))
 	}
@@ -227,7 +251,22 @@ func (p *preview) imageCells(cols, rows int) string {
 		p.id = newImageID()
 		fmt.Fprintf(&b, "\x1b_Ga=T,U=1,f=100,t=f,i=%d,c=%d,r=%d,q=2;%s\x1b\\",
 			p.id, c, r, base64.StdEncoding.EncodeToString([]byte(p.png)))
-		p.sent, shownID = key, p.id
+		p.sent, shownID, p.sentAt, p.replaced = key, p.id, time.Now(), false
+		go func() {
+			time.Sleep(placeAgainAfter)
+			redraw()
+		}()
+	}
+	if !p.replaced && time.Since(p.sentAt) >= placeAgainAfter {
+		fmt.Fprintf(&b, "\x1b_Ga=p,U=1,i=%d,c=%d,r=%d,q=2\x1b\\", p.id, c, r)
+		p.replaced = true
+	}
+	if time.Since(p.sentAt) < drawAfter {
+		go func() {
+			time.Sleep(drawAfter)
+			redraw()
+		}()
+		return b.String() + strings.Repeat("\n", r-1)
 	}
 	for row := range r {
 		if row > 0 {

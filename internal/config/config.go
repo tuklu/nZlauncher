@@ -47,6 +47,12 @@ func DataDir() string {
 	return filepath.Join(xdg("XDG_DATA_HOME", ".local/share"), "nzlauncher")
 }
 
+// CacheDir holds what can be made again: decoded images, rates, the
+// launcher's terminal override.
+func CacheDir() string {
+	return filepath.Join(xdg("XDG_CACHE_HOME", ".cache"), "nzlauncher")
+}
+
 // ThemeFile is a file in <config>/theme/, which a desktop theme may link in.
 // Frontends fall back to their built-in look when it is missing.
 func ThemeFile(name string) string {

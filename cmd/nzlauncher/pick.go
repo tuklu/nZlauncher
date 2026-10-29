@@ -97,6 +97,7 @@ func floatFzf(input string, fzfArgs []string, class string) ([]string, error) {
 
 	cmd := exec.Command("ghostty", "--class="+class,
 		"--gtk-single-instance=false",
+		solidConfig(),
 		"--window-padding-x=12", "--window-padding-y=10",
 		"-e", "bash", "-c", script)
 	cmd.Run()
