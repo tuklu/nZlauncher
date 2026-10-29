@@ -32,7 +32,9 @@ type tuiModel struct {
 func Run(initial string) error {
 	m := &tuiModel{query: initial, width: 80, height: 16, st: buildStyles(loadTheme())}
 	m.refresh()
-	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+	_, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
+	fmt.Print(clearImage())
+	if err != nil {
 		return err
 	}
 	if m.picked != "" {
@@ -57,6 +59,7 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		sized = true
 
 	case tea.KeyMsg:
 		switch msg.Type {
