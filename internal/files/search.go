@@ -2,7 +2,6 @@ package files
 
 import (
 	"bytes"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -36,10 +35,11 @@ type Hit struct {
 
 // match is a hit before its path is built: only the winners get one.
 type match struct {
-	entry int32
-	score int32
-	mtime int64
-	depth int32 // length of the directory path, shallower ranks first
+	entry  int32
+	score  int32
+	mtime  int64
+	depth  int32 // length of the directory path, shallower ranks first
+	hidden bool
 }
 
 // Search answers from the index; ok is false when it is not built yet.
@@ -51,45 +51,42 @@ func Search(f Filter) (hits []Hit, ok bool) {
 	if f.Limit == 0 {
 		f.Limit = 25
 	}
-	var all []match
-	if cands, ok := ix.candidates(f.Terms); ok {
-		all = considerList(ix, f, cands)
+	// walk the smallest set that holds every match: a trigram list, the
+	// files of the asked types, or the run of entries under the folders
+	lo, hi := 0, len(ix.entries)
+	if len(f.InDirs) > 0 {
+		lo, hi = ix.span(f.InDirs)
+	}
+	byType := -1
+	if len(f.Exts) > 0 {
+		byType = 0
+		for _, ext := range f.Exts {
+			byType += len(ix.byExt[ext])
+		}
+	}
+	c := newCollector(ix, f)
+	if cands, ok := ix.candidates(f.Terms); ok && len(cands) <= max(hi-lo, 0) {
+		considerList(c, cands)
+	} else if byType >= 0 && byType < hi-lo {
+		for _, ext := range f.Exts {
+			considerList(c, ix.byExt[ext])
+		}
+	} else if hi-lo < len(ix.entries) && hi-lo <= splitAbove {
+		searchRange(c, lo, hi)
+	} else if hi-lo < len(ix.entries) {
+		inParallel(c, hi-lo, func(part *collector, a, b int) { searchRange(part, lo+a, lo+b) })
 	} else {
-		all = scanAll(ix, f)
+		scanAll(c)
 	}
 
-	// best match first; among equals the newer and the shallower file
-	better := func(a, b match) bool {
-		if a.score != b.score {
-			return a.score > b.score
-		}
-		if a.mtime != b.mtime {
-			return a.mtime > b.mtime
-		}
-		return a.depth < b.depth
-	}
-	// keep the top Limit without sorting every match
-	top := make([]match, 0, f.Limit+1)
-	for _, m := range all {
-		if len(top) == f.Limit && !better(m, top[len(top)-1]) {
-			continue
-		}
-		k := sort.Search(len(top), func(n int) bool { return better(m, top[n]) })
-		top = append(top, match{})
-		copy(top[k+1:], top[k:])
-		top[k] = m
-		if len(top) > f.Limit {
-			top = top[:f.Limit]
-		}
-	}
-	for _, m := range top {
+	for _, m := range c.top {
 		e := &ix.entries[m.entry]
 		hits = append(hits, Hit{Path: ix.path(e), Size: e.Size, ModTime: time.Unix(e.ModTime, 0)})
 	}
 	return hits, true
 }
 
-func (f Filter) passes(ix *index, i int, dirOK map[int32]bool) bool {
+func (f Filter) passes(ix *index, i int, dirOK []int8) bool {
 	e := &ix.entries[i]
 	if !f.After.IsZero() && e.ModTime < f.After.Unix() || !f.Before.IsZero() && e.ModTime >= f.Before.Unix() {
 		return false
@@ -97,32 +94,34 @@ func (f Filter) passes(ix *index, i int, dirOK map[int32]bool) bool {
 	if f.MinSize > 0 && e.Size < f.MinSize || f.MaxSize > 0 && e.Size > f.MaxSize {
 		return false
 	}
-	if len(f.Exts) > 0 {
-		if !hasExt(ix.lowerName(i), f.Exts) {
-			return false
-		}
+	if len(f.Exts) > 0 && !hasExt(ix.nameBytes(i), f.Exts) {
+		return false
 	}
 	if len(f.InDirs) > 0 {
-		ok, seen := dirOK[e.dir]
-		if !seen {
+		if dirOK[e.dir] == 0 {
+			dirOK[e.dir] = -1
 			for _, d := range f.InDirs {
 				if dir := ix.dirs[e.dir]; dir == d || strings.HasPrefix(dir, d+"/") {
-					ok = true
+					dirOK[e.dir] = 1
 				}
 			}
-			dirOK[e.dir] = ok
 		}
-		if !ok {
+		if dirOK[e.dir] < 0 {
 			return false
 		}
 	}
 	return true
 }
 
-func hasExt(name string, exts []string) bool {
-	ext := strings.TrimPrefix(filepath.Ext(name), ".")
+// hasExt checks the packed name in place: a query with no terms tests every
+// entry, and a string per entry would cost more than the test.
+func hasExt(name []byte, exts []string) bool {
+	dot := bytes.LastIndexByte(name, '.')
+	if dot < 0 {
+		return false
+	}
 	for _, e := range exts {
-		if ext == e {
+		if string(name[dot+1:]) == e {
 			return true
 		}
 	}
@@ -150,22 +149,16 @@ func nameScore(name string, terms []string) (int, bool) {
 }
 
 // searchRange finds matches among entries [lo, hi).
-func searchRange(ix *index, f Filter, lo, hi int) []match {
-	var hits []match
-	dirOK := make(map[int32]bool)
-	consider := func(i int) {
-		if m, ok := ix.consider(f, i, dirOK); ok {
-			hits = append(hits, m)
-		}
-	}
+func searchRange(c *collector, lo, hi int) {
+	ix, f := c.ix, c.f
 	if lo >= hi {
-		return nil
+		return
 	}
 	if len(f.Terms) == 0 {
 		for i := lo; i < hi; i++ {
-			consider(i)
+			c.consider(i)
 		}
-		return hits
+		return
 	}
 
 	// the longest term has the fewest matches; find it in the packed names,
@@ -207,9 +200,8 @@ func searchRange(ix *index, f Filter, lo, hi int) []match {
 			continue
 		}
 		last = i
-		consider(i)
+		c.consider(i)
 	}
-	return hits
 }
 
 // candidates is the shortest trigram list among the terms' trigrams: every
@@ -229,47 +221,102 @@ func (ix *index) candidates(terms []string) ([]uint32, bool) {
 	return best, found
 }
 
-func considerList(ix *index, f Filter, list []uint32) []match {
-	var hits []match
-	dirOK := make(map[int32]bool)
-	for _, id := range list {
-		if m, ok := ix.consider(f, int(id), dirOK); ok {
-			hits = append(hits, m)
-		}
+// Lists and ranges this long are split across cores.
+const splitAbove = 20000
+
+func considerList(c *collector, list []uint32) {
+	if len(list) > splitAbove {
+		inParallel(c, len(list), func(part *collector, lo, hi int) { considerList(part, list[lo:hi]) })
+		return
 	}
-	return hits
+	for _, id := range list {
+		c.consider(int(id))
+	}
 }
 
-// scanAll is for queries the trigram lists cannot narrow: one slice of the
-// entries per core.
-func scanAll(ix *index, f Filter) []match {
+// scanAll is for queries nothing narrows.
+func scanAll(c *collector) {
+	inParallel(c, len(c.ix.entries), func(part *collector, lo, hi int) { searchRange(part, lo, hi) })
+}
+
+// inParallel runs search over [0, n) in one slice per core, each slice with
+// its own top, and merges the tops into c.
+func inParallel(c *collector, n int, search func(part *collector, lo, hi int)) {
 	parts := runtime.GOMAXPROCS(0)
-	results := make([][]match, parts)
+	results := make([]*collector, parts)
 	var wg sync.WaitGroup
 	for p := range parts {
-		lo, hi := p*len(ix.entries)/parts, (p+1)*len(ix.entries)/parts
+		results[p] = newCollector(c.ix, c.f)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			results[p] = searchRange(ix, f, lo, hi)
+			search(results[p], p*n/parts, (p+1)*n/parts)
 		}()
 	}
 	wg.Wait()
-	var all []match
 	for _, r := range results {
-		all = append(all, r...)
+		for _, m := range r.top {
+			c.add(m)
+		}
 	}
-	return all
 }
 
-func (ix *index) consider(f Filter, i int, dirOK map[int32]bool) (match, bool) {
-	if !f.passes(ix, i, dirOK) {
-		return match{}, false
+// collector keeps the best Limit matches as they are found, so a query that
+// matches 100k files never holds 100k of them.
+type collector struct {
+	ix    *index
+	f     Filter
+	dirOK []int8 // per directory: 0 not checked yet, 1 inside InDirs, -1 outside
+	top   []match
+}
+
+func newCollector(ix *index, f Filter) *collector {
+	c := &collector{ix: ix, f: f, top: make([]match, 0, f.Limit+1)}
+	if len(f.InDirs) > 0 {
+		c.dirOK = make([]int8, len(ix.dirs))
+	}
+	return c
+}
+
+func (c *collector) consider(i int) {
+	ix, f := c.ix, c.f
+	if !f.passes(ix, i, c.dirOK) {
+		return
 	}
 	e := &ix.entries[i]
-	score, matched := nameScore(ix.lowerName(i), f.Terms)
-	if !matched {
-		return match{}, false
+	score := 0
+	if len(f.Terms) > 0 {
+		var matched bool
+		if score, matched = nameScore(ix.lowerName(i), f.Terms); !matched {
+			return
+		}
 	}
-	return match{entry: int32(i), score: int32(score), mtime: e.ModTime, depth: int32(len(ix.dirs[e.dir]))}, true
+	c.add(match{entry: int32(i), score: int32(score), mtime: e.ModTime, depth: int32(len(ix.dirs[e.dir])), hidden: ix.hidden[e.dir]})
+}
+
+// best match first; among equals the visible, the newer, the shallower file
+func better(a, b match) bool {
+	if a.score != b.score {
+		return a.score > b.score
+	}
+	if a.hidden != b.hidden {
+		return b.hidden
+	}
+	if a.mtime != b.mtime {
+		return a.mtime > b.mtime
+	}
+	return a.depth < b.depth
+}
+
+func (c *collector) add(m match) {
+	if len(c.top) == c.f.Limit && !better(m, c.top[len(c.top)-1]) {
+		return
+	}
+	k := sort.Search(len(c.top), func(n int) bool { return better(m, c.top[n]) })
+	c.top = append(c.top, match{})
+	copy(c.top[k+1:], c.top[k:])
+	c.top[k] = m
+	if len(c.top) > c.f.Limit {
+		c.top = c.top[:c.f.Limit]
+	}
 }

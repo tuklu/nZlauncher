@@ -42,6 +42,15 @@ type index struct {
 	// containing it, ascending. One flat array, so no per-list slack.
 	trigrams map[uint32][2]uint32
 	postings []uint32
+	// extension -> entries with it, so "pdfs" with no name is a lookup
+	byExt map[string][]uint32
+	// a directory under a dot folder ranks below visible ones
+	hidden []bool
+	// the walk is depth first, so a folder's whole subtree is one run of
+	// entries; lastEntry[d] is where the run of dir d's files ends
+	firstEntry, lastEntry []uint32
+	// dir indexes by path: everything under a folder is one block of it
+	sortedDirs []uint32
 }
 
 func (ix *index) path(e *Entry) string {
@@ -104,7 +113,7 @@ func keepCurrent() {
 }
 
 func build(c Config) *index {
-	ix := &index{built: time.Now()}
+	ix := &index{built: time.Now(), byExt: map[string][]uint32{}}
 	lists := map[uint32][]uint32{}
 	dirOf := map[string]int32{}
 	for _, root := range c.Roots {
@@ -134,7 +143,11 @@ func build(c Config) *index {
 				idx = int32(len(ix.dirs))
 				dirOf[dir] = idx
 				ix.dirs = append(ix.dirs, dir)
+				ix.hidden = append(ix.hidden, strings.Contains(strings.TrimPrefix(dir, root), "/."))
+				ix.firstEntry = append(ix.firstEntry, uint32(len(ix.entries)))
+				ix.lastEntry = append(ix.lastEntry, 0)
 			}
+			ix.lastEntry[idx] = uint32(len(ix.entries))
 			e := Entry{dir: idx, Name: d.Name(), Size: info.Size(), ModTime: info.ModTime().Unix()}
 			l := strings.ToLower(e.Name)
 			ix.offsets = append(ix.offsets, uint32(len(ix.names)))
@@ -150,10 +163,20 @@ func build(c Config) *index {
 					lists[t] = append(p, id)
 				}
 			}
+			if dot := strings.LastIndexByte(l, '.'); dot > 0 && len(l)-dot <= 6 {
+				ext := l[dot+1:]
+				ix.byExt[ext] = append(ix.byExt[ext], id)
+			}
 			ix.entries = append(ix.entries, e)
 			return nil
 		})
 	}
+	ix.sortedDirs = make([]uint32, len(ix.dirs))
+	for d := range ix.sortedDirs {
+		ix.sortedDirs[d] = uint32(d)
+	}
+	slices.SortFunc(ix.sortedDirs, func(a, b uint32) int { return strings.Compare(ix.dirs[a], ix.dirs[b]) })
+
 	ix.trigrams = make(map[uint32][2]uint32, len(lists))
 	total := 0
 	for _, p := range lists {
@@ -168,13 +191,17 @@ func build(c Config) *index {
 	return ix
 }
 
-// lowerName is entry i's name as stored in the packed buffer.
-func (ix *index) lowerName(i int) string {
+// nameBytes is entry i's lowercased name inside the packed buffer.
+func (ix *index) nameBytes(i int) []byte {
 	end := len(ix.names) - 1
 	if i+1 < len(ix.offsets) {
 		end = int(ix.offsets[i+1]) - 1
 	}
-	return string(ix.names[ix.offsets[i]:end])
+	return ix.names[ix.offsets[i]:end]
+}
+
+func (ix *index) lowerName(i int) string {
+	return string(ix.nameBytes(i))
 }
 
 func excluded(root, path, name string, exclude []string) bool {
@@ -237,4 +264,24 @@ func DefaultConfig() Config {
 
 func trigram(s string) uint32 {
 	return uint32(s[0])<<16 | uint32(s[1])<<8 | uint32(s[2])
+}
+
+// span is the run of entries under the given directories: [lo, hi).
+func (ix *index) span(dirs []string) (lo, hi int) {
+	lo, hi = len(ix.entries), 0
+	at := func(path string) int {
+		k, _ := slices.BinarySearchFunc(ix.sortedDirs, path, func(d uint32, p string) int { return strings.Compare(ix.dirs[d], p) })
+		return k
+	}
+	for _, want := range dirs {
+		// the folder itself, then every path from want+"/" up to want+"0",
+		// the byte after '/'
+		for _, d := range ix.sortedDirs[at(want):at(want+"0")] {
+			if path := ix.dirs[d]; path == want || strings.HasPrefix(path, want+"/") {
+				lo = min(lo, int(ix.firstEntry[d]))
+				hi = max(hi, int(ix.lastEntry[d])+1)
+			}
+		}
+	}
+	return lo, hi
 }
