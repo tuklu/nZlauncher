@@ -8,76 +8,87 @@ import (
 	"strings"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/bluez"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
-// bt / bluetooth — power toggle plus paired devices with live connect state.
+// bt / bluetooth: adapter power and every paired device, read from BlueZ.
+// Devices show while the adapter is off too: connecting turns it on first.
 func Bluetooth(q string) []action.Action {
 	if !On("bluetooth") {
 		return nil
 	}
-	q = strings.ToLower(q)
-	if _, err := exec.LookPath("bluetoothctl"); err != nil {
+	state := bluez.Current()
+	if !state.Available {
 		return nil
 	}
+	q = strings.ToLower(q)
 
 	var acts []action.Action
-	if !btPowered() {
-		return append(acts, action.Action{
-			ID: "bt:power", Name: "Bluetooth On", Icon: "󰂯", Group: "bluetooth",
-			Cmd: "bluetoothctl power on && notify-send -u low 'Bluetooth on'",
+	if state.Powered {
+		acts = append(acts, action.Action{
+			ID: "bt:power", Name: "Bluetooth Off", Icon: "󰂲", Group: "bluetooth", Hint: "on",
+			Cmd: "bluetoothctl power off >/dev/null && notify-send -u low 'Bluetooth off'",
+		})
+	} else {
+		acts = append(acts, action.Action{
+			ID: "bt:power", Name: "Bluetooth On", Icon: "󰂯", Group: "bluetooth", Hint: "off",
+			Cmd: "bluetoothctl power on >/dev/null && notify-send -u low 'Bluetooth on'",
 		})
 	}
-	acts = append(acts, action.Action{
-		ID: "bt:power", Name: "Bluetooth Off", Icon: "󰂲", Group: "bluetooth",
-		Cmd: "bluetoothctl power off && notify-send -u low 'Bluetooth off'",
-	})
 
-	connected := map[string]bool{}
-	for mac := range btDevices("Connected") {
-		connected[mac] = true
-	}
-	for mac, name := range btDevices("") {
-		if q != "" && !strings.Contains(strings.ToLower(name), q) {
+	for _, d := range state.Devices {
+		if q != "" && !strings.Contains(strings.ToLower(d.Name), q) {
 			continue
 		}
-		if connected[mac] {
-			acts = append(acts, action.Action{
-				ID: "bt:" + mac, Name: "Disconnect " + name, Icon: "󰂱", Group: "bluetooth",
-				Cmd: "bluetoothctl disconnect " + mac,
-			})
+		name, mac := d.Name, shell.Quote(d.Address)
+		a := action.Action{ID: "bt:" + d.Address, Icon: btIcon(d.Icon), Group: "bluetooth", Hint: btHint(d)}
+		if d.Connected {
+			a.Name = "Disconnect " + name
+			a.Cmd = "bluetoothctl disconnect " + mac + " >/dev/null && notify-send -u low " + shell.Quote("Disconnected "+name) +
+				" || notify-send " + shell.Quote("Could not disconnect "+name)
 		} else {
-			acts = append(acts, action.Action{
-				ID: "bt:" + mac, Name: "Connect " + name, Icon: "󰂯", Group: "bluetooth",
-				Cmd: "bluetoothctl connect " + mac,
-			})
+			a.Name = "Connect " + name
+			power := ""
+			if !state.Powered {
+				power = "bluetoothctl power on >/dev/null && "
+			}
+			a.Cmd = power + "bluetoothctl connect " + mac + " >/dev/null && notify-send -u low " + shell.Quote("Connected "+name) +
+				" || notify-send " + shell.Quote("Could not connect "+name)
 		}
+		acts = append(acts, a)
 	}
 	return append(acts, tuiTail("bluetui", "Bluetui", "full Bluetooth manager")...)
 }
 
-func btPowered() bool {
-	out, err := exec.Command("bluetoothctl", "show").Output()
-	return err == nil && strings.Contains(string(out), "Powered: yes")
+func btHint(d bluez.Device) string {
+	hint := "paired"
+	if d.Connected {
+		hint = "connected"
+	}
+	if d.Battery >= 0 {
+		hint += fmt.Sprintf(" · %d%%", d.Battery)
+	}
+	return hint
 }
 
-func btDevices(filter string) map[string]string {
-	args := []string{"devices"}
-	if filter != "" {
-		args = append(args, filter)
+// BlueZ reports a freedesktop icon name for the device class.
+func btIcon(kind string) string {
+	switch {
+	case strings.Contains(kind, "mouse"):
+		return "󰍽"
+	case strings.Contains(kind, "keyboard"):
+		return "󰌌"
+	case strings.Contains(kind, "headset"), strings.Contains(kind, "headphone"):
+		return "󰋋"
+	case strings.HasPrefix(kind, "audio"):
+		return "󰓃"
+	case strings.Contains(kind, "phone"):
+		return "󰏲"
+	case strings.Contains(kind, "gaming"):
+		return "󰊗"
 	}
-	out, err := exec.Command("bluetoothctl", args...).Output()
-	if err != nil {
-		return nil
-	}
-	devices := map[string]string{}
-	for _, line := range strings.Split(string(out), "\n") {
-		parts := strings.SplitN(strings.TrimSpace(line), " ", 3)
-		if len(parts) == 3 && parts[0] == "Device" {
-			devices[parts[1]] = parts[2]
-		}
-	}
-	return devices
+	return "󰂯"
 }
 
 // audio / sound / output — pick a specific output device, current one marked.

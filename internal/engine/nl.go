@@ -35,6 +35,10 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 			words = append(words, w)
 		}
 	}
+	// "connect" alone lists what can be connected
+	if len(words) == 1 && (words[0] == "connect" || words[0] == "disconnect") {
+		words = append(words, "")
+	}
 	if len(words) < 2 {
 		return nil
 	}
@@ -64,6 +68,9 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 	case "connect", "disconnect":
 		// device entries from both radios; state decides connect vs disconnect
 		res := keepContaining(append(providers.Bluetooth(arg), providers.Wifi(arg)...), "connect")
+		if verb == "disconnect" {
+			res = keepContaining(res, "disconnect")
+		}
 		return res
 
 	case "turn":
