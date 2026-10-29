@@ -16,6 +16,7 @@ pages=(
     "hyprland.md:Hyprland"
     "plugins.md:Plugins"
     "how-it-works.md:How-it-works"
+    "protocol.md:Protocol"
     "development.md:Development"
 )
 

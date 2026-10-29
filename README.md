@@ -95,6 +95,7 @@ cliphist + wl-clipboard (clipboard), bluez-utils (bluetooth), iwd
 | [Hyprland](docs/hyprland.md) | binds, window and layer rules |
 | [Plugins](docs/plugins.md) | writing your own providers |
 | [How it works](docs/how-it-works.md) | ranking, the learning model, the event log |
+| [Protocol](docs/protocol.md) | the engine daemon and its socket, for writing your own frontend |
 | [Development](docs/development.md) | building, code layout, adding a provider, releases |
 
 ## License

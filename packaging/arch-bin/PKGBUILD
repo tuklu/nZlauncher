@@ -23,11 +23,14 @@ provides=('nzlauncher')
 conflicts=('nzlauncher' 'nzlauncher-git')
 options=('!strip' '!debug')
 source=("nzlauncher-$pkgver::$url/releases/download/v$pkgver/nzlauncher-linux-amd64"
-        "LICENSE-$pkgver::https://raw.githubusercontent.com/tuklu/nZlauncher/v$pkgver/LICENSE")
-sha256sums=('59dad4377423e7f7cd7e8289026abca08ed679629f8ad3e61ff66c8dfd8c34ff'
-            'cffff6a257a267deefebc1866d636e5f1bd098550007dcd75e8de8fbb38375dc')
+        "LICENSE-$pkgver::https://raw.githubusercontent.com/tuklu/nZlauncher/v$pkgver/LICENSE"
+        "nzlauncher-$pkgver.service::https://raw.githubusercontent.com/tuklu/nZlauncher/v$pkgver/packaging/systemd/nzlauncher.service")
+sha256sums=('SKIP'
+            'SKIP'
+            'SKIP')
 
 package() {
   install -Dm755 "nzlauncher-$pkgver" "$pkgdir/usr/bin/nzlauncher"
   install -Dm644 "LICENSE-$pkgver" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 "nzlauncher-$pkgver.service" "$pkgdir/usr/lib/systemd/user/nzlauncher.service"
 }

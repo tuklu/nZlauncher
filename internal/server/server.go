@@ -1,0 +1,157 @@
+// Package server keeps the engine resident and answers queries over a unix
+// socket, so frontends stay thin. The protocol is documented in
+// docs/protocol.md: one JSON object per line each way, connections reusable.
+package server
+
+import (
+	"bufio"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime/debug"
+	"syscall"
+	"time"
+
+	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/engine"
+)
+
+type Request struct {
+	Op      string `json:"op"`                // "query" or "ping"
+	Q       string `json:"q,omitempty"`       // the query text
+	Focused string `json:"focused,omitempty"` // class of the window the user came from
+}
+
+type Result struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Icon     string `json:"icon,omitempty"`
+	IconName string `json:"icon_name,omitempty"`
+	Group    string `json:"group,omitempty"`
+	Cmd      string `json:"cmd"`
+	Display  string `json:"display"`
+}
+
+type Response struct {
+	OK      bool     `json:"ok"`
+	Error   string   `json:"error,omitempty"`
+	Version string   `json:"version,omitempty"`
+	Results []Result `json:"results,omitempty"`
+}
+
+func SocketPath() string {
+	dir := os.Getenv("XDG_RUNTIME_DIR")
+	if dir == "" {
+		dir = fmt.Sprintf("/run/user/%d", os.Getuid())
+	}
+	return filepath.Join(dir, "nzlauncher.sock")
+}
+
+func version() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		return info.Main.Version
+	}
+	return "unknown"
+}
+
+// Serve listens until SIGINT or SIGTERM. A socket left by a dead daemon is
+// replaced; a live one means another daemon already serves this session.
+func Serve() error {
+	path := SocketPath()
+	if conn, err := net.DialTimeout("unix", path, 100*time.Millisecond); err == nil {
+		conn.Close()
+		return errors.New("already running on " + path)
+	}
+	os.Remove(path)
+
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		return err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		ln.Close()
+		return err
+	}
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-stop
+		ln.Close()
+	}()
+	defer os.Remove(path)
+
+	engine.Warm()
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return nil
+			}
+			return err
+		}
+		go handle(conn)
+	}
+}
+
+func handle(conn net.Conn) {
+	defer conn.Close()
+	in := bufio.NewScanner(conn)
+	in.Buffer(make([]byte, 64*1024), 1024*1024)
+	out := json.NewEncoder(conn)
+	for in.Scan() {
+		var req Request
+		if err := json.Unmarshal(in.Bytes(), &req); err != nil {
+			out.Encode(Response{Error: "bad request: " + err.Error()})
+			continue
+		}
+		out.Encode(answer(req))
+	}
+}
+
+func answer(req Request) Response {
+	switch req.Op {
+	case "ping":
+		return Response{OK: true, Version: version()}
+	case "query":
+		acts, err := engine.QueryFor(req.Q, req.Focused)
+		if err != nil {
+			return Response{Error: err.Error()}
+		}
+		return Response{OK: true, Results: results(acts)}
+	}
+	return Response{Error: "unknown op: " + req.Op}
+}
+
+func results(acts []action.Action) []Result {
+	out := make([]Result, len(acts))
+	for i, a := range acts {
+		out[i] = Result{ID: a.ID, Name: a.Name, Icon: a.Icon, IconName: a.IconName, Group: a.Group, Cmd: a.Cmd, Display: a.Display()}
+	}
+	return out
+}
+
+// Ask sends one request to a running daemon. It fails fast when there is
+// none, so callers can fall back to running the engine themselves.
+func Ask(req Request) (Response, error) {
+	conn, err := net.DialTimeout("unix", SocketPath(), 50*time.Millisecond)
+	if err != nil {
+		return Response{}, err
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	if err := json.NewEncoder(conn).Encode(req); err != nil {
+		return Response{}, err
+	}
+	var resp Response
+	if err := json.NewDecoder(bufio.NewReader(conn)).Decode(&resp); err != nil {
+		return Response{}, err
+	}
+	if !resp.OK {
+		return resp, errors.New(resp.Error)
+	}
+	return resp, nil
+}

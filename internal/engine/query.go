@@ -18,9 +18,15 @@ var groupNames = map[string]bool{
 	"power": true, "toggle": true, "capture": true, "info": true, "app": true,
 }
 
-// Query is the engine: every frontend (TUI, GTK, scripts via `nz query`)
-// consumes this one function.
+// Query is the engine: every frontend consumes this one function. The window
+// the user came from is read from NZ_FOCUSED, set by the bar for its face.
 func Query(raw string) ([]action.Action, error) {
+	return QueryFor(raw, os.Getenv("NZ_FOCUSED"))
+}
+
+// QueryFor is Query with the focused window given explicitly, for a daemon
+// that answers many clients.
+func QueryFor(raw, focusedClass string) ([]action.Action, error) {
 	start := time.Now()
 	snap, err := cache.snapshot(start)
 	if err != nil {
@@ -31,7 +37,7 @@ func Query(raw string) ([]action.Action, error) {
 		model:   snap.model,
 		now:     start,
 		ssid:    snap.ssid,
-		focused: os.Getenv("NZ_FOCUSED"),
+		focused: focusedClass,
 	}
 	now := ctx.now.Unix()
 	q := strings.ToLower(strings.TrimSpace(raw))
@@ -164,4 +170,11 @@ func rank(actions []action.Action, stats map[string]learn.Stat, ctx queryContext
 		ranked[i] = h.action
 	}
 	return ranked
+}
+
+// Warm loads every cached source now, so a daemon's first answer is as fast
+// as the rest.
+func Warm() {
+	cache.snapshot(time.Now())
+	cache.windowList()
 }

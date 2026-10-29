@@ -47,10 +47,11 @@ jobs:
           v=${GITHUB_REF_NAME#v}
           bin_sum=$(sha256sum nzlauncher-linux-amd64 | cut -d' ' -f1)
           lic_sum=$(sha256sum LICENSE | cut -d' ' -f1)
-          awk -v v="$v" -v b="$bin_sum" -v l="$lic_sum" '
+          unit_sum=$(sha256sum packaging/systemd/nzlauncher.service | cut -d' ' -f1)
+          awk -v v="$v" -v b="$bin_sum" -v l="$lic_sum" -v u="$unit_sum" '
             /^pkgver=/ { print "pkgver=" v; next }
             /^pkgrel=/ { print "pkgrel=1"; next }
-            /^sha256sums=/ { print "sha256sums=('\''" b "'\''"; print "            '\''" l "'\'')"; skip=1; next }
+            /^sha256sums=/ { print "sha256sums=('\''" b "'\''"; print "            '\''" l "'\''"; print "            '\''" u "'\'')"; skip=1; next }
             skip && /\)/ { skip=0; next }
             skip { next }
             { print }' packaging/arch-bin/PKGBUILD > PKGBUILD

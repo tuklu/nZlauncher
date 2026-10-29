@@ -1,0 +1,12 @@
+[Unit]
+Description=nZlauncher engine
+Documentation=https://github.com/tuklu/nZlauncher/blob/main/docs/protocol.md
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/nzlauncher serve
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target
