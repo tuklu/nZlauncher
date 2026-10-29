@@ -49,6 +49,11 @@
 # kill = true
 # transcode = true
 # plugins = true          # executables in providers.d/
+# units = true            # 5 km to miles, 72f in c
+# currency = true         # 100 usd to inr; the daemon fetches ECB rates
+#                         # from api.frankfurter.dev once a day, false stops it
+# time = true             # time in tokyo, 3pm london to new york
+# dates = true            # days until christmas, in 30 days, 2026-12-25
 
 [fallbacks]
 # What an unmatched query turns into.

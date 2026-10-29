@@ -13,6 +13,7 @@ The query goes to the first route that applies:
 ""                 top 8 items by frecency + context
 "apps"             every app, by frecency
 a group name       that group (power, toggle, capture, info), by frecency
+an answer         put on top of whatever the routes below return
 a file sentence    apps named like the query, then the file index  + fallbacks
 a sentence         the verb grammar sends it to a provider       + fallbacks
 a prefix word      built-in provider, else providers.d plugin    + fallbacks

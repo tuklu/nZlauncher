@@ -155,6 +155,26 @@ takes a screenshot, `screenshots` lists them. An app whose name starts
 with what you typed stays on top, so an app called Docs is still the
 first hit for `docs`.
 
+## Answers
+
+Some queries are answered right away, as the first result. Enter copies
+the value.
+
+| Kind | Examples |
+|---|---|
+| units | `5 km to miles`, `72f in c`, `6 ft in cm`, `how many cm in 6 ft`, `1.5 gb to mib`, `2 cups to ml`, `100 kmh to mph` |
+| currency | `100 usd to inr`, `$100 in inr`, `50 euros to usd`, `100 usd inr` |
+| time | `time in tokyo`, `tokyo time`, `time in japan`, `3pm in london`, `3pm london to new york`, `15:00 utc in ist` |
+| dates | `days until christmas`, `days since 2026-01-01`, `in 30 days`, `10 days ago`, `today + 2 weeks`, `what day is 2026-12-25`, `week number`, a unix timestamp |
+
+Units cover length, mass, volume, temperature, data (`gb` is 1000³,
+`gib` 1024³), time, speed and area. Currencies are the ~30 the European
+Central Bank publishes, by code or by name (`dollars`, `rupees`, `yen`);
+the rates are refreshed by the daemon once a day and work offline. Places
+are every city with its own time zone, every country, the common
+abbreviations (`ist`, `pst`, `cet`) and a few big cities without a zone
+(`delhi`, `san francisco`, `beijing`).
+
 ## Fallbacks
 
 When the query doesn't match anything well, these are added at the end:

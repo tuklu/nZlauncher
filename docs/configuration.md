@@ -46,7 +46,15 @@ A provider turned off disappears from its prefix word, from sentences that
 use it and from the first view. The providers are `apps`, `windows`,
 `bluetooth`, `wifi`, `audio`, `volume`, `brightness`, `monitor`,
 `workspace`, `wallpaper`, `clipboard`, `emoji`, `files`, `keys`, `kill`,
-`transcode` and `plugins` (everything in `providers.d/`).
+`transcode` and `plugins` (everything in `providers.d/`), and the inline
+answers `units`, `currency`, `time` and `dates`.
+
+`currency` is the only part that touches the network: the daemon fetches
+the European Central Bank's reference rates from
+[Frankfurter](https://frankfurter.dev) (open source, no key) once a day
+into `~/.cache/nzlauncher/rates.json`. A query only reads that file, so
+conversions work offline with the last rates, and the hint says how old
+they are. `currency = false` stops the fetching too.
 
 The look comes from `theme/nz-gtk.css` and `theme/nz-tui.toml` when they
 exist, otherwise the built-in theme. nZlauncher never writes into `theme/`,

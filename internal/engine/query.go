@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/answer"
 	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/intent"
 	"github.com/tuklu/nZlauncher/internal/learn"
 	"github.com/tuklu/nZlauncher/internal/providers"
+	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
 const topCount = 8
@@ -54,18 +56,20 @@ func QueryFor(raw, focusedClass string) ([]action.Action, error) {
 	case groupNames[q]:
 		ranked = byGroup(actions, q, stats, now)
 	default:
+		ranked = answers(raw, start)
 		if fq := intent.Files(strings.TrimSpace(raw), start); fq.Sure && providers.On("files") && !filePrefixed(q) {
 			// an app called like the query still comes first: "docs" may be one
 			pool := append(actions, cache.windowList()...)
-			ranked = append(namePrefixed(rank(pool, stats, ctx, q), q), providers.FilterFiles(fq.Filter)...)
+			ranked = append(ranked, namePrefixed(rank(pool, stats, ctx, q), q)...)
+			ranked = append(ranked, providers.FilterFiles(fq.Filter)...)
 			ranked = append(ranked, fallbacks(raw, ctx.settings)...)
 		} else if nl := nlIntent(actions, stats, ctx, q); len(nl) > 0 {
-			ranked = append(nl, fallbacks(raw, ctx.settings)...)
+			ranked = append(append(ranked, nl...), fallbacks(raw, ctx.settings)...)
 		} else if provided, ok := providers.ByPrefix(strings.TrimSpace(raw)); ok {
-			ranked = append(provided, fallbacks(raw, ctx.settings)...)
+			ranked = append(append(ranked, provided...), fallbacks(raw, ctx.settings)...)
 		} else {
 			pool := append(actions, cache.windowList()...)
-			ranked = append(rank(pool, stats, ctx, q), fallbacks(raw, ctx.settings)...)
+			ranked = append(append(ranked, rank(pool, stats, ctx, q)...), fallbacks(raw, ctx.settings)...)
 		}
 	}
 
@@ -179,6 +183,21 @@ func rank(actions []action.Action, stats map[string]learn.Stat, ctx queryContext
 		ranked[i] = h.action
 	}
 	return ranked
+}
+
+// answers are computed results for the top of the list: conversions, the
+// time somewhere, date math. Enter copies the value.
+func answers(raw string, now time.Time) []action.Action {
+	icons := map[string]string{"units": "󰟢", "currency": "󰄉", "time": "󰥔", "dates": "󰃭"}
+	var acts []action.Action
+	for _, a := range answer.For(raw, now, providers.On) {
+		acts = append(acts, action.Action{
+			ID: "answer:" + a.Kind, Group: "answer", Icon: icons[a.Kind],
+			Name: "= " + a.Name, Hint: a.Hint,
+			Cmd: "wl-copy -n " + shell.Quote(a.Value),
+		})
+	}
+	return acts
 }
 
 // "f pdfs" goes to the file provider, which reads the rest itself; with the

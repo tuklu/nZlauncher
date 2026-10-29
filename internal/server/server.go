@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/answer"
 	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/engine"
 	"github.com/tuklu/nZlauncher/internal/files"
@@ -65,6 +67,20 @@ func version() string {
 
 // Serve listens until SIGINT or SIGTERM. A socket left by a dead daemon is
 // replaced; a live one means another daemon already serves this session.
+// keepRatesFresh refreshes the currency cache; the call itself does nothing
+// while the cache is under a day old, so checking often is cheap and a
+// laptop that was offline catches up soon after it is back.
+func keepRatesFresh() {
+	for {
+		if providers.On("currency") {
+			if err := answer.RefreshRates(); err != nil {
+				log.Printf("currency rates: %v", err)
+			}
+		}
+		time.Sleep(30 * time.Minute)
+	}
+}
+
 func Serve() error {
 	path := SocketPath()
 	if conn, err := net.DialTimeout("unix", path, 100*time.Millisecond); err == nil {
@@ -95,6 +111,7 @@ func Serve() error {
 		providers.PruneClipCache()
 		providers.WarmClipboard()
 	}()
+	go keepRatesFresh()
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -118,11 +135,11 @@ func handle(conn net.Conn) {
 			out.Encode(Response{Error: "bad request: " + err.Error()})
 			continue
 		}
-		out.Encode(answer(req))
+		out.Encode(respond(req))
 	}
 }
 
-func answer(req Request) Response {
+func respond(req Request) Response {
 	switch req.Op {
 	case "ping":
 		return Response{OK: true, Version: version()}
