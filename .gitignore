@@ -8,3 +8,4 @@ packaging/arch/nZlauncher/
 packaging/arch*/*.pkg.tar.*
 packaging/arch-bin/nzlauncher-*
 packaging/arch-bin/LICENSE-*
+__pycache__/
