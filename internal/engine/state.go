@@ -171,6 +171,11 @@ func installed(a action.Action) bool {
 			return false
 		}
 	}
+	for _, program := range a.Unless {
+		if portable.Have(program) {
+			return false
+		}
+	}
 	return true
 }
 

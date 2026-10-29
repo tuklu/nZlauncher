@@ -80,6 +80,8 @@ func TestInstalled(t *testing.T) {
 		"missing":         {action.Action{Cmd: "no-such-program-nz --flag"}, false},
 		"env first":       {action.Action{Cmd: "FOO=1 sh -c true"}, true},
 		"requires absent": {action.Action{Cmd: "sh -c true", Requires: []string{"no-such-program-nz"}}, false},
+		"unless present":  {action.Action{Cmd: "sh -c true", Unless: []string{"sh"}}, false},
+		"unless absent":   {action.Action{Cmd: "sh -c true", Unless: []string{"no-such-program-nz"}}, true},
 	}
 	for name, c := range cases {
 		if got := installed(c.a); got != c.want {

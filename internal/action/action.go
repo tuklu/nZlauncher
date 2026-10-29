@@ -17,6 +17,9 @@ type Action struct {
 	// Requires names programs the command needs besides its first word;
 	// a catalog entry whose programs are not installed is hidden.
 	Requires []string `toml:"requires"`
+	// Unless hides an entry when one of these is installed: a portable
+	// screenshot entry gives way to neZha's screenshot script.
+	Unless []string `toml:"unless"`
 }
 
 // Badge is what goes in the right-hand column.

@@ -146,6 +146,58 @@ group = "capture"
 keywords = ["screenrecord", "video", "voice"]
 cmd = "screenrecord --audio --mic"
 
+# Without the screenshot, ocr and screenrecord scripts, the same entries on
+# common tools: grim and slurp, tesseract, wf-recorder.
+
+[[action]]
+id = "screenshot-smart"
+name = "Screenshot"
+icon = "󰆞"
+group = "capture"
+keywords = ["region", "snip"]
+cmd = "mkdir -p \"${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots\" && f=\"${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots/screenshot-$(date +%F_%H-%M-%S).png\" && grim -g \"$(slurp)\" \"$f\" && wl-copy < \"$f\" && notify-send -u low Screenshot \"Saved and copied\""
+requires = ["slurp", "wl-copy"]
+unless = ["screenshot"]
+
+[[action]]
+id = "screenshot-window"
+name = "Screenshot Window"
+icon = "󰖯"
+group = "capture"
+cmd = "mkdir -p \"${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots\" && f=\"${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots/screenshot-$(date +%F_%H-%M-%S).png\" && grim -g \"$(hyprctl activewindow -j | jq -r '\"\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1])\"')\" \"$f\" && wl-copy < \"$f\" && notify-send -u low Screenshot \"Saved and copied\""
+requires = ["hyprctl", "jq", "wl-copy"]
+unless = ["screenshot"]
+
+[[action]]
+id = "screenshot-full"
+name = "Screenshot Fullscreen"
+icon = "󰹑"
+group = "capture"
+cmd = "mkdir -p \"${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots\" && f=\"${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots/screenshot-$(date +%F_%H-%M-%S).png\" && grim \"$f\" && wl-copy < \"$f\" && notify-send -u low Screenshot \"Saved and copied\""
+requires = ["wl-copy"]
+unless = ["screenshot"]
+
+[[action]]
+id = "ocr"
+name = "Copy Text From Screen"
+icon = "󰰿"
+group = "capture"
+keywords = ["ocr", "text"]
+cmd = "grim -g \"$(slurp)\" - | tesseract stdin - 2>/dev/null | wl-copy && notify-send -u low \"Text copied\""
+requires = ["slurp", "tesseract", "wl-copy"]
+unless = ["ocr"]
+
+[[action]]
+id = "record-screen"
+name = "Record Screen"
+icon = "󰑊"
+group = "capture"
+keywords = ["video", "capture"]
+# a second pick stops it
+cmd = "pkill -INT -x wf-recorder || { mkdir -p \"${XDG_VIDEOS_DIR:-$HOME/Videos}\" && wf-recorder -g \"$(slurp)\" -f \"${XDG_VIDEOS_DIR:-$HOME/Videos}/recording-$(date +%F_%H-%M-%S).mp4\"; }"
+requires = ["wf-recorder", "slurp"]
+unless = ["screenrecord"]
+
 [[action]]
 id = "set-reminder"
 name = "Set Reminder"

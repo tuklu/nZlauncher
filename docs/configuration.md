@@ -128,6 +128,7 @@ cmd = "loginctl lock-session"
 | `group` | no | shown as the badge on the right. Typing the group name lists the whole group |
 | `keywords` | no | extra words to match on |
 | `requires` | no | programs the command needs besides its first word, like `["hyprpicker"]` for `pkill hyprpicker \|\| hyprpicker -a` |
+| `unless` | no | hide the entry when one of these is installed, for a fallback that gives way to a better tool: `unless = ["screenshot"]` |
 
 An entry whose programs aren't installed is hidden rather than failing
 when picked: the first word of `cmd` (past any `VAR=value`) and everything
@@ -135,8 +136,11 @@ in `requires` have to be on PATH. That's checked as you type, so a tool
 installed later shows up within a minute.
 
 The defaults include entries for helper scripts some setups have
-(`screenshot`, `ocr`, `screenrecord`, `battery-status`); without them those
-entries simply don't show. Point `cmd` at whatever your system uses.
+(`screenshot`, `ocr`, `screenrecord`, `battery-status`). Screenshots, OCR
+and recording also have a second, plain version on grim and slurp,
+tesseract and wf-recorder, marked `unless` the script exists, so either
+way there is one entry. Screenshots land in `$XDG_PICTURES_DIR/Screenshots`
+and on the clipboard. Point `cmd` at whatever your system uses.
 
 ### Commands
 
