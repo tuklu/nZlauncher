@@ -3,6 +3,8 @@ name: release
 on:
   push:
     tags: ["v*"]
+  # rebuild the files of an existing tag: gh workflow run release.yml --ref vX.Y.Z
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -38,12 +40,29 @@ jobs:
       - name: build
         run: go build -ldflags "-s -w" -o nzlauncher-linux-amd64 ./cmd/nzlauncher
 
+      # nzlauncher-bin PKGBUILD with this version and real checksums, ready
+      # to copy to the AUR
+      - name: package files
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          bin_sum=$(sha256sum nzlauncher-linux-amd64 | cut -d' ' -f1)
+          lic_sum=$(sha256sum LICENSE | cut -d' ' -f1)
+          awk -v v="$v" -v b="$bin_sum" -v l="$lic_sum" '
+            /^pkgver=/ { print "pkgver=" v; next }
+            /^pkgrel=/ { print "pkgrel=1"; next }
+            /^sha256sums=/ { print "sha256sums=('\''" b "'\''"; print "            '\''" l "'\'')"; skip=1; next }
+            skip && /\)/ { skip=0; next }
+            skip { next }
+            { print }' packaging/arch-bin/PKGBUILD > PKGBUILD
+          sha256sum nzlauncher-linux-amd64 > SHA256SUMS
+
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          files="nzlauncher-linux-amd64 PKGBUILD SHA256SUMS"
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" nzlauncher-linux-amd64 --clobber
+            gh release upload "$GITHUB_REF_NAME" $files --clobber
           else
-            gh release create "$GITHUB_REF_NAME" nzlauncher-linux-amd64 --generate-notes
+            gh release create "$GITHUB_REF_NAME" $files --generate-notes
           fi
