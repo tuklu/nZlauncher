@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/tuklu/nZlauncher/internal/intent"
 )
 
 // dateMath answers "days until christmas", "days since 2026-01-01",
@@ -25,6 +27,12 @@ func dateMath(q string, now time.Time) (Answer, bool) {
 		if !ok || !strings.HasSuffix(before, "days") && !strings.HasSuffix(before, "long") && !strings.HasSuffix(before, "weeks") {
 			continue
 		}
+		// "30 days from today" is an offset, below
+		if first, _, _ := strings.Cut(before, " "); first != "days" && first != "how" && first != "weeks" {
+			if _, isNumber := intent.Number(first); isNumber {
+				continue
+			}
+		}
 		target, ok := namedDate(after, today)
 		if !ok {
 			continue // "30 days from now" is an offset, below
@@ -37,7 +45,7 @@ func dateMath(q string, now time.Time) (Answer, bool) {
 			days = -days
 		}
 		value := strconv.Itoa(days)
-		return Answer{Value: value, Name: value + " days", Hint: target.Format("Mon 2 Jan 2006") + weeksHint(days)}, true
+		return Answer{Value: value, Name: plural(days, "day"), Hint: target.Format("Mon 2 Jan 2006") + weeksHint(days)}, true
 	}
 
 	// "in 30 days", "30 days from now", "today + 2 weeks", "10 days ago"
@@ -105,6 +113,24 @@ var holidays = map[string][2]int{
 // "dec 25", "today", "tomorrow", "yesterday".
 func namedDate(s string, today time.Time) (time.Time, bool) {
 	s = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(s), " day"))
+	// "25th of december," is 25 december
+	var parts []string
+	for _, w := range strings.Fields(strings.ReplaceAll(s, ",", " ")) {
+		if w == "of" {
+			continue
+		}
+		if d, ok := strings.CutSuffix(w, "st"); ok && isDigits(d) {
+			w = d
+		} else if d, ok := strings.CutSuffix(w, "nd"); ok && isDigits(d) {
+			w = d
+		} else if d, ok := strings.CutSuffix(w, "rd"); ok && isDigits(d) {
+			w = d
+		} else if d, ok := strings.CutSuffix(w, "th"); ok && isDigits(d) {
+			w = d
+		}
+		parts = append(parts, w)
+	}
+	s = strings.Join(parts, " ")
 	switch s {
 	case "today":
 		return today, true
@@ -120,13 +146,13 @@ func namedDate(s string, today time.Time) (time.Time, bool) {
 		}
 		return t, true
 	}
-	for _, layout := range []string{"2006-01-02", "2 jan 2006", "jan 2 2006", "2 january 2006", "january 2 2006"} {
+	for _, layout := range []string{"2006-01-02", "2 Jan 2006", "Jan 2 2006", "2 January 2006", "January 2 2006"} {
 		if t, err := time.ParseInLocation(layout, s, today.Location()); err == nil {
 			return t, true
 		}
 	}
 	// no year: the next one
-	for _, layout := range []string{"2 jan", "jan 2", "2 january", "january 2"} {
+	for _, layout := range []string{"2 Jan", "Jan 2", "2 January", "January 2"} {
 		if t, err := time.ParseInLocation(layout, s, today.Location()); err == nil {
 			t = time.Date(today.Year(), t.Month(), t.Day(), 0, 0, 0, 0, today.Location())
 			if t.Before(today) {
@@ -138,49 +164,87 @@ func namedDate(s string, today time.Time) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// lastOccurrence: "days since christmas" means the one that has passed.
+// lastOccurrence: "days since christmas" or "since 5 jan" means the one
+// that has passed, unless a year was given.
 func lastOccurrence(s string, t, today time.Time) time.Time {
-	if _, ok := holidays[strings.TrimSpace(s)]; ok && t.After(today) {
+	for _, w := range strings.Fields(s) {
+		if len(w) == 4 && isDigits(w) {
+			return t
+		}
+	}
+	if t.After(today) {
 		return t.AddDate(-1, 0, 0)
 	}
 	return t
 }
 
-// offset reads "in 30 days", "30 days from now", "today + 2 weeks",
-// "3 months ago" as years, months, days.
+// offset reads "in 30 days", "in two weeks", "30 days from now", "2 weeks
+// from tomorrow", "a week ago", "today + 2 weeks" as years, months, days.
 func offset(words []string) ([3]int, bool) {
-	sign := 1
+	sign, base := 1, 0
 	switch {
-	case len(words) == 3 && words[0] == "in":
+	case len(words) >= 3 && words[0] == "in":
 		words = words[1:]
-	case len(words) == 4 && words[2] == "from" && (words[3] == "now" || words[3] == "today"):
-		words = words[:2]
-	case len(words) == 3 && words[2] == "ago":
-		words, sign = words[:2], -1
-	case len(words) == 4 && words[0] == "today" && (words[1] == "+" || words[1] == "-"):
+	case len(words) >= 4 && words[len(words)-2] == "from":
+		switch words[len(words)-1] {
+		case "now", "today":
+		case "tomorrow":
+			base = 1
+		default:
+			return [3]int{}, false
+		}
+		words = words[:len(words)-2]
+	case len(words) >= 3 && words[len(words)-1] == "ago":
+		words, sign = words[:len(words)-1], -1
+	case len(words) >= 4 && (words[0] == "today" || words[0] == "tomorrow") && (words[1] == "+" || words[1] == "-"):
 		if words[1] == "-" {
 			sign = -1
+		}
+		if words[0] == "tomorrow" {
+			base = 1
 		}
 		words = words[2:]
 	default:
 		return [3]int{}, false
 	}
-	n, err := strconv.Atoi(words[0])
-	if err != nil {
+	// "a couple of weeks" is "couple weeks", "a few days" is "few days"
+	var amount []string
+	for _, w := range words {
+		if w != "of" {
+			amount = append(amount, w)
+		}
+	}
+	if len(amount) == 3 && (amount[0] == "a" || amount[0] == "an") {
+		amount = amount[1:]
+	}
+	words = amount
+	if len(words) != 2 {
 		return [3]int{}, false
 	}
-	n *= sign
+	f, ok := intent.Number(words[0])
+	if !ok || f != float64(int(f)) {
+		return [3]int{}, false
+	}
+	n := int(f) * sign
 	switch strings.TrimSuffix(words[1], "s") {
 	case "day":
-		return [3]int{0, 0, n}, true
+		return [3]int{0, 0, n + base}, true
 	case "week":
-		return [3]int{0, 0, 7 * n}, true
+		return [3]int{0, 0, 7*n + base}, true
 	case "month":
-		return [3]int{0, n, 0}, true
+		return [3]int{0, n, base}, true
 	case "year":
-		return [3]int{n, 0, 0}, true
+		return [3]int{n, 0, base}, true
 	}
 	return [3]int{}, false
+}
+
+// plural: "1 day", "2 days".
+func plural(n int, word string) string {
+	if n == 1 {
+		return "1 " + word
+	}
+	return strconv.Itoa(n) + " " + word + "s"
 }
 
 func weeksHint(days int) string {

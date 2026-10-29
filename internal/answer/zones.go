@@ -32,6 +32,15 @@ var placeAliases = map[string]string{
 	"beijing": "Asia/Shanghai", "china": "Asia/Shanghai", "usa": "America/New_York", "us": "America/New_York",
 	"dubai": "Asia/Dubai", "uae": "Asia/Dubai", "munich": "Europe/Berlin", "frankfurt": "Europe/Berlin",
 	"barcelona": "Europe/Madrid", "milan": "Europe/Rome", "osaka": "Asia/Tokyo", "toronto": "America/Toronto",
+	// countries across several zones: where most people are, not the
+	// first zone the tz table lists
+	"australia": "Australia/Sydney", "canada": "America/Toronto", "brazil": "America/Sao_Paulo",
+	"russia": "Europe/Moscow", "germany": "Europe/Berlin", "mexico": "America/Mexico_City",
+	"indonesia": "Asia/Jakarta", "argentina": "America/Argentina/Buenos_Aires", "spain": "Europe/Madrid",
+	"portugal": "Europe/Lisbon", "chile": "America/Santiago", "kazakhstan": "Asia/Almaty",
+	"united states": "America/New_York", "the us": "America/New_York", "the uk": "Europe/London",
+	"united kingdom": "Europe/London", "new zealand": "Pacific/Auckland", "mongolia": "Asia/Ulaanbaatar",
+	"calcutta": "Asia/Kolkata", "bombay": "Asia/Kolkata", "madras": "Asia/Kolkata", "peking": "Asia/Shanghai",
 }
 
 var places struct {
@@ -98,6 +107,10 @@ func location(place string) (*time.Location, string, bool) {
 // "3pm in tokyo", "3pm london to new york", "15:00 utc in ist".
 func timeIn(q string, now time.Time) (Answer, bool) {
 	q = strings.TrimSuffix(strings.TrimPrefix(q, "what "), "?")
+	for _, lead := range []string{"the ", "current ", "local "} {
+		q = strings.TrimPrefix(q, lead)
+	}
+	q = strings.Replace(q, "time now in ", "time in ", 1)
 	for _, p := range []string{"time is it in ", "time in ", "time at "} {
 		if place, ok := strings.CutPrefix(q, p); ok {
 			if loc, zone, ok := location(place); ok {
@@ -166,12 +179,16 @@ func clock(words []string) (h, m, used int) {
 		w, suffix = s, "pm"
 	}
 	hs, ms, hasMinutes := strings.Cut(w, ":")
-	h, err := strconv.Atoi(hs)
-	if err != nil || suffix == "" && !hasMinutes {
+	// digits only: "3:-5" and "-3:00" are no times
+	if !isDigits(hs) || len(hs) > 2 || hasMinutes && (!isDigits(ms) || len(ms) != 2) {
+		return 0, 0, 0
+	}
+	h, _ = strconv.Atoi(hs)
+	if suffix == "" && !hasMinutes {
 		return 0, 0, 0
 	}
 	if hasMinutes {
-		if m, err = strconv.Atoi(ms); err != nil || m > 59 {
+		if m, _ = strconv.Atoi(ms); m > 59 {
 			return 0, 0, 0
 		}
 	}

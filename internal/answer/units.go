@@ -22,10 +22,10 @@ var units = func() map[string]unit {
 			m[w] = unit{kind, factor, name}
 		}
 	}
-	add("length", 1e-3, "mm", "mm", "millimeter", "millimeters", "millimetre", "millimetres")
-	add("length", 1e-2, "cm", "cm", "centimeter", "centimeters", "centimetre", "centimetres")
+	add("length", 1e-3, "mm", "mm", "mms", "millimeter", "millimeters", "millimetre", "millimetres")
+	add("length", 1e-2, "cm", "cm", "cms", "centimeter", "centimeters", "centimetre", "centimetres")
 	add("length", 1, "m", "m", "meter", "meters", "metre", "metres")
-	add("length", 1e3, "km", "km", "kilometer", "kilometers", "kilometre", "kilometres")
+	add("length", 1e3, "km", "km", "kms", "kilometer", "kilometers", "kilometre", "kilometres")
 	add("length", 0.0254, "in", "in", "inch", "inches", `"`)
 	add("length", 0.3048, "ft", "ft", "foot", "feet", "'")
 	add("length", 0.9144, "yd", "yd", "yard", "yards")
@@ -40,7 +40,7 @@ var units = func() map[string]unit {
 	add("mass", 0.45359237, "lb", "lb", "lbs", "pound", "pounds")
 	add("mass", 6.35029318, "st", "st", "stone", "stones")
 
-	add("volume", 1e-3, "ml", "ml", "milliliter", "milliliters", "millilitre", "millilitres")
+	add("volume", 1e-3, "ml", "ml", "mls", "milliliter", "milliliters", "millilitre", "millilitres")
 	add("volume", 1, "l", "l", "liter", "liters", "litre", "litres")
 	add("volume", 3.785411784, "gal", "gal", "gallon", "gallons")
 	add("volume", 0.946352946, "qt", "qt", "quart", "quarts")

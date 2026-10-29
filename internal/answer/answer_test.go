@@ -176,3 +176,45 @@ func TestLocalTemperature(t *testing.T) {
 		t.Errorf("a bare 44c is not a temperature: %+v", got)
 	}
 }
+
+func TestEdgeHunt(t *testing.T) {
+	cache := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cache)
+	os.MkdirAll(filepath.Join(cache, "nzlauncher"), 0o700)
+	os.WriteFile(filepath.Join(cache, "nzlauncher", "rates.json"),
+		[]byte(`{"date":"2026-10-29","rates":{"USD":1.113,"INR":106.04,"GBP":0.8358}}`), 0o600)
+	cases := map[string]string{
+		"days until 25 dec":           "57 days",
+		"days until december 25th":    "57 days",
+		"days until 25th of december": "57 days",
+		"what day is 4 july":          "Sunday, 4 July 2027",
+		"30 days from today":          "Sat 28 Nov 2026",
+		"2 weeks from tomorrow":       "Fri 13 Nov 2026",
+		"in two weeks":                "Thu 12 Nov 2026",
+		"a week ago":                  "Thu 22 Oct 2026",
+		"days since 1 jan":            "301 days",
+		"days until tomorrow":         "1 day",
+		"100 usd in gbp?":             "75.09 GBP",
+		"5k inr to usd":               "52.48 USD",
+		"5 kms to miles":              "3.10686 mi",
+		"1 nautical mile to km":       "1.852 km",
+		"what's 5 km in miles":        "3.10686 mi",
+		"1,5 kg to lb":                "3.30693 lb",
+		"1,000 g to kg":               "1 kg",
+		"what's the time in tokyo":    "18:30 in Tokyo",
+		"current time in tokyo":       "18:30 in Tokyo",
+		"time in australia":           "20:30 in Australia",
+		"time in bombay":              "15:00 in Bombay",
+	}
+	for q, want := range cases {
+		got := For(q, now, all)
+		if len(got) == 0 || got[0].Name != want {
+			t.Errorf("%q: got %+v, want %q", q, got, want)
+		}
+	}
+	for _, q := range []string{"3:-5 in tokyo", "-3:00 in tokyo"} {
+		if got := For(q, now, all); len(got) != 0 {
+			t.Errorf("%q: want nothing, got %+v", q, got)
+		}
+	}
+}

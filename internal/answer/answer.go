@@ -23,6 +23,13 @@ type Answer struct {
 // For answers q, or returns nothing. enabled says which kinds are on.
 func For(q string, now time.Time, enabled func(kind string) bool) []Answer {
 	q = strings.TrimSpace(strings.ToLower(q))
+	// "100 usd to inr?", "what's 5 km in miles"
+	q = strings.TrimRight(q, "?!. ")
+	for _, lead := range []string{"what's ", "whats ", "what’s ", "what is "} {
+		if rest, ok := strings.CutPrefix(q, lead); ok {
+			q = "what " + rest
+		}
+	}
 	if q == "" {
 		return nil
 	}
@@ -58,7 +65,7 @@ var conversionWords = map[string]bool{"to": true, "in": true, "into": true, "as"
 // "convert 5 kg to lb", "how many cm in 5 ft".
 func conversion(q string) (n float64, from, to string, ok bool) {
 	words := strings.Fields(q)
-	for len(words) > 0 && (words[0] == "convert" || words[0] == "what" || words[0] == "is" || words[0] == "whats") {
+	for len(words) > 0 && (words[0] == "convert" || words[0] == "what" || words[0] == "is") {
 		words = words[1:]
 	}
 	// "how many cm in 5 ft"
@@ -83,8 +90,11 @@ func conversion(q string) (n float64, from, to string, ok bool) {
 		}
 		return n, from, to, true
 	}
-	// "in degrees fahrenheit", "to ° f"
-	if len(rest) == 3 && conversionWords[rest[0]] && degreeWords[rest[1]] {
+	// "in degrees fahrenheit", "to ° f", "to nautical miles"
+	if len(rest) == 3 && conversionWords[rest[0]] && (degreeWords[rest[1]] || rest[1] == "nautical") {
+		if rest[1] == "nautical" {
+			rest[2] = "nmi"
+		}
 		rest = []string{rest[0], rest[2]}
 	}
 	if len(rest) == 2 && conversionWords[rest[0]] {
@@ -129,6 +139,10 @@ func amount(words []string) (n float64, unit string, used int) {
 		return 0, "", 0
 	}
 	if k < len(w) {
+		// "5k inr", "1.5k usd": thousands before a currency or unit
+		if w[k:] == "k" && len(words) > 1 && !conversionWords[words[1]] {
+			return v * 1000, unitWord(words[1]), 2
+		}
 		return v, unitWord(w[k:]), 1
 	}
 	used = 1
@@ -141,9 +155,12 @@ func amount(words []string) (n float64, unit string, used int) {
 	}
 	if len(words) > used {
 		u := words[used]
-		// "5 fl oz"
+		// "5 fl oz", "1 nautical mile"
 		if u == "fl" && len(words) > used+1 && words[used+1] == "oz" {
 			return v, "floz", used + 2
+		}
+		if u == "nautical" && len(words) > used+1 && strings.HasPrefix(words[used+1], "mile") {
+			return v, "nmi", used + 2
 		}
 		return v, unitWord(u), used + 1
 	}
@@ -183,7 +200,13 @@ var unitVocabulary = func() *intent.Vocab {
 	return intent.NewVocab(v)
 }()
 
+// parseNumber reads "1,000" and "1,000.5" with comma thousands, and "1,5"
+// and "1.000,50" with a comma as the decimal mark: a comma is decimal when
+// it is the last mark and fewer than three digits follow it.
 func parseNumber(s string) (float64, error) {
+	if c := strings.LastIndexByte(s, ','); c >= 0 && c > strings.LastIndexByte(s, '.') && len(s)-c-1 != 3 {
+		s = strings.ReplaceAll(s[:c], ".", "") + "." + s[c+1:]
+	}
 	return strconv.ParseFloat(strings.ReplaceAll(s, ",", ""), 64)
 }
 
