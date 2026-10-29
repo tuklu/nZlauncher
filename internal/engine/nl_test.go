@@ -1,10 +1,10 @@
 package engine
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/tuklu/nZlauncher/internal/intent"
+	"github.com/tuklu/nZlauncher/internal/portable"
 )
 
 func TestLevelArg(t *testing.T) {
@@ -43,20 +43,33 @@ func TestToggleWords(t *testing.T) {
 }
 
 func TestReminderIntent(t *testing.T) {
-	cases := map[string]string{
-		"remind me in 20 minutes to stretch": "reminder 20 'stretch'",
-		"remind me to stretch in 1h":         "reminder 60 'stretch'",
-		"remind 10 tea":                      "reminder 10 'tea'",
-		"timer 5m":                           "reminder 5 ''",
-		"set a timer for half an hour":       "reminder 30 ''",
-		"remind me":                          "reminder prompt",
+	// the command depends on what is installed: compare with what this
+	// machine would run
+	cases := map[string]struct {
+		minutes int
+		text    string
+	}{
+		"remind me in 20 minutes to stretch": {20, "stretch"},
+		"remind me to stretch in 1h":         {60, "stretch"},
+		"remind 10 tea":                      {10, "tea"},
+		"timer 5m":                           {5, ""},
+		"set a timer for half an hour":       {30, ""},
 	}
 	for q, want := range cases {
-		ws := intent.Words(q)
-		acts := reminderIntent(ws)
-		if len(acts) != 1 || !strings.HasPrefix(acts[0].Cmd, want) {
-			t.Errorf("%q: got %+v, want %s", q, acts, want)
+		acts := reminderIntent(intent.Words(q))
+		if !portable.CanRemind() {
+			if len(acts) != 0 {
+				t.Errorf("%q: no way to remind, yet %+v", q, acts)
+			}
+			continue
 		}
+		if len(acts) != 1 || acts[0].Cmd != portable.Remind(want.minutes, want.text) {
+			t.Errorf("%q: got %+v, want %s", q, acts, portable.Remind(want.minutes, want.text))
+		}
+	}
+	// without a duration only neZha's script can ask for one
+	if acts := reminderIntent(intent.Words("remind me")); portable.Have("reminder") != (len(acts) == 1) {
+		t.Errorf("remind me: %+v", acts)
 	}
 }
 

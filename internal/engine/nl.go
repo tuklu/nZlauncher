@@ -9,8 +9,8 @@ import (
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/intent"
 	"github.com/tuklu/nZlauncher/internal/learn"
+	"github.com/tuklu/nZlauncher/internal/portable"
 	"github.com/tuklu/nZlauncher/internal/providers"
-	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
 // Natural language verb layer: deterministic grammar, no model.
@@ -186,8 +186,15 @@ func reminderIntent(ws []intent.Word) []action.Action {
 		msg = append(msg, ws[i])
 	}
 	if d == 0 {
+		// asking for the time needs neZha's script; the timer needs a duration
+		if !portable.Have("reminder") {
+			return nil
+		}
 		return []action.Action{{ID: "set-reminder", Name: "Set Reminder…", Icon: "󰔛", Group: "info",
 			Cmd: "reminder prompt"}}
+	}
+	if !portable.CanRemind() {
+		return nil
 	}
 	mins := int(math.Ceil(d.Minutes()))
 	text := intent.RawJoin(msg)
@@ -197,7 +204,7 @@ func reminderIntent(ws []intent.Word) []action.Action {
 	}
 	return []action.Action{{ID: "remind", Name: name, Icon: "󰔛", Group: "info",
 		Hint: time.Now().Add(time.Duration(mins) * time.Minute).Format("15:04"),
-		Cmd:  fmt.Sprintf("reminder %d %s", mins, shell.Quote(text))}}
+		Cmd:  portable.Remind(mins, text)}}
 }
 
 func shortDuration(mins int) string {

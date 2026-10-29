@@ -8,6 +8,7 @@ import (
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/icons"
+	"github.com/tuklu/nZlauncher/internal/portable"
 )
 
 // AppDirs are scanned in this order, user first.
@@ -107,7 +108,7 @@ func parseDesktop(path, id string, lib *icons.Library) (action.Action, bool) {
 		return action.Action{}, false
 	}
 
-	cmd := "uwsm-app -- " + stripFieldCodes(execLine)
+	cmd := portable.App(stripFieldCodes(execLine))
 	if terminal {
 		cmd = "xdg-terminal-exec " + stripFieldCodes(execLine)
 	}

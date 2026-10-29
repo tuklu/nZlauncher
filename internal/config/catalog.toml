@@ -1,5 +1,7 @@
 # nZlauncher catalog, lives at ~/.config/nzlauncher/catalog.toml
 # Your actions. Settings live in config.toml next to this file.
+# An entry whose command is not installed is hidden: its first word, and
+# whatever `requires` lists, have to be on PATH.
 
 # ── Power ─────────────────────────────────────────────────────────────────────
 
@@ -8,7 +10,8 @@ id = "lock"
 name = "Lock Screen"
 icon = "󰌾"
 group = "power"
-cmd = "lock-screen"
+# the idle daemon (hypridle, KDE, GNOME) runs its own lock command
+cmd = "loginctl lock-session"
 
 [[action]]
 id = "suspend"
@@ -77,6 +80,7 @@ icon = "󰍜"
 group = "toggle"
 keywords = ["waybar", "panel"]
 cmd = "pkill -SIGUSR1 waybar"
+requires = ["waybar"]
 
 # ── Capture ───────────────────────────────────────────────────────────────────
 
@@ -116,6 +120,7 @@ icon = "󰈊"
 group = "capture"
 keywords = ["hex", "eyedropper"]
 cmd = "pkill hyprpicker || hyprpicker -a"
+requires = ["hyprpicker"]
 
 [[action]]
 id = "record-screen"
@@ -181,6 +186,7 @@ name = "Battery Status"
 icon = "󰁹"
 group = "info"
 cmd = "notify-send -u low \"$(battery-status)\""
+requires = ["battery-status"]
 
 [[action]]
 id = "weather"
@@ -188,6 +194,7 @@ name = "Weather"
 icon = "󰖕"
 group = "info"
 cmd = "notify-send -u low \"$(weather)\""
+requires = ["weather"]
 
 [[action]]
 id = "audio-output"

@@ -2,10 +2,10 @@ package providers
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/portable"
 	"github.com/tuklu/nZlauncher/internal/shell"
 	"github.com/tuklu/nZlauncher/internal/wifi"
 )
@@ -51,7 +51,10 @@ func Wifi(q string) []action.Action {
 				" || notify-send " + shell.Quote("Could not connect "+n.SSID)
 		default:
 			a.Name = "Connect " + n.SSID
-			a.Cmd = "launch-tui " + joinCommand(state, n.SSID)
+			a.Cmd = portable.Terminal(joinCommand(state, n.SSID))
+			if a.Cmd == "" {
+				continue // no terminal to ask for the passphrase in
+			}
 		}
 		acts = append(acts, a)
 	}
@@ -97,12 +100,12 @@ func signalIcon(percent int) string {
 
 // Escape hatch into a real TUI when the quick action isn't enough.
 func tuiTail(binary, name, desc string) []action.Action {
-	if _, err := exec.LookPath(binary); err != nil {
+	if !portable.Have(binary) || portable.Terminal(binary) == "" {
 		return nil
 	}
 	return []action.Action{{
 		ID: "tui:" + binary, Name: "Open " + name + "   (" + desc + ")",
 		Icon: "", Group: "tui",
-		Cmd: "launch-tui " + binary,
+		Cmd: portable.Terminal(binary),
 	}}
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/files"
 	"github.com/tuklu/nZlauncher/internal/intent"
-	"github.com/tuklu/nZlauncher/internal/shell"
+	"github.com/tuklu/nZlauncher/internal/portable"
 )
 
 // file / f: the file index, read as a sentence ("f pdfs from last week");
@@ -146,7 +146,7 @@ func fileAction(path string) action.Action {
 		Name:  tilde(path),
 		Icon:  fileIcon(path),
 		Group: "file",
-		Cmd:   "uwsm-app -- xdg-open " + shell.Quote(path),
+		Cmd:   portable.Open(path),
 	}
 }
 

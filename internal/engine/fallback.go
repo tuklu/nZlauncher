@@ -2,12 +2,12 @@ package engine
 
 import (
 	"net/url"
-	"os/exec"
 	"regexp"
 	"strings"
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/config"
+	"github.com/tuklu/nZlauncher/internal/portable"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
@@ -33,12 +33,12 @@ func fallbacks(raw string, s config.Settings) []action.Action {
 			fb = append(fb, u)
 		}
 	} else if first := strings.Fields(q); len(first) > 0 && s.Fallback("run") {
-		if _, err := exec.LookPath(first[0]); err == nil {
-			script := q + `; printf '\n[done] press any key'; read -n1 -s`
+		script := q + `; printf '\n[done] press any key'; read -n1 -s`
+		if term := portable.Terminal("bash -c " + shell.Quote(script)); term != "" && portable.Have(first[0]) {
 			fb = append(fb, action.Action{
 				ID: "fallback:run", Group: "fallback", Icon: "",
 				Name: "Run: " + q,
-				Cmd:  "launch-tui bash -c " + shell.Quote(script),
+				Cmd:  term,
 			})
 		}
 	}
@@ -53,7 +53,7 @@ func searchAction(q string, s config.Settings) action.Action {
 	return action.Action{
 		ID: "fallback:search", Group: "fallback", Icon: "󰍉",
 		Name: "Search web: " + q,
-		Cmd:  "uwsm-app -- xdg-open " + shell.Quote(strings.ReplaceAll(s.SearchURL(), "%s", url.QueryEscape(q))),
+		Cmd:  portable.Open(strings.ReplaceAll(s.SearchURL(), "%s", url.QueryEscape(q))),
 	}
 }
 
@@ -68,7 +68,7 @@ func urlAction(q string) (action.Action, bool) {
 	return action.Action{
 		ID: "fallback:url", Group: "fallback", Icon: "󰖟",
 		Name: "Open " + q,
-		Cmd:  "uwsm-app -- xdg-open " + shell.Quote(u),
+		Cmd:  portable.Open(u),
 	}, true
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/bluez"
+	"github.com/tuklu/nZlauncher/internal/portable"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
@@ -137,37 +138,38 @@ func Volume(q string) []action.Action {
 	}
 	switch sign, n, ok := level(q); {
 	case q == "mute":
-		return []action.Action{muteAction}
+		return []action.Action{muteAction()}
 	case q == "unmute":
-		return []action.Action{unmuteAction}
+		return []action.Action{unmuteAction()}
 	case ok && sign == "+":
 		return []action.Action{{ID: "vol:up", Name: fmt.Sprintf("Volume Up %d%%", n), Icon: "󰕾", Group: "audio",
-			Cmd: fmt.Sprintf("osd --output-volume +%d", n)}}
+			Cmd: portable.VolumeStep(n)}}
 	case ok && sign == "-":
 		return []action.Action{{ID: "vol:down", Name: fmt.Sprintf("Volume Down %d%%", n), Icon: "󰖀", Group: "audio",
-			Cmd: fmt.Sprintf("osd --output-volume -%d", n)}}
+			Cmd: portable.VolumeStep(-n)}}
 	case ok:
 		return []action.Action{{
 			ID: "vol:set", Name: fmt.Sprintf("Volume %d%%", n), Icon: "󰕾", Group: "audio",
-			Cmd: fmt.Sprintf("wpctl set-volume @DEFAULT_AUDIO_SINK@ %d%%", n),
+			Cmd: portable.Volume(n),
 		}}
 	}
 	var acts []action.Action
 	for _, n := range []int{25, 50, 75, 100} {
 		acts = append(acts, action.Action{
 			ID: fmt.Sprintf("vol:%d", n), Name: fmt.Sprintf("Volume %d%%", n), Icon: "󰕾", Group: "audio",
-			Cmd: fmt.Sprintf("wpctl set-volume @DEFAULT_AUDIO_SINK@ %d%%", n),
+			Cmd: portable.Volume(n),
 		})
 	}
-	return append(acts, muteAction, unmuteAction)
+	return append(acts, muteAction(), unmuteAction())
 }
 
-var (
-	muteAction = action.Action{ID: "vol:mute", Name: "Mute", Icon: "󰝟", Group: "audio",
-		Cmd: "osd --output-volume mute"}
-	unmuteAction = action.Action{ID: "vol:unmute", Name: "Unmute", Icon: "󰕾", Group: "audio",
-		Cmd: "osd --output-volume unmute"}
-)
+func muteAction() action.Action {
+	return action.Action{ID: "vol:mute", Name: "Mute", Icon: "󰝟", Group: "audio", Cmd: portable.Mute(true)}
+}
+
+func unmuteAction() action.Action {
+	return action.Action{ID: "vol:unmute", Name: "Unmute", Icon: "󰕾", Group: "audio", Cmd: portable.Mute(false)}
+}
 
 // ws / workspace — jump or move the active window; "ws 3", "ws move 3".
 func Workspace(q string) []action.Action {
@@ -214,21 +216,21 @@ func Brightness(q string) []action.Action {
 	switch sign, n, ok := level(q); {
 	case ok && sign == "+":
 		return []action.Action{{ID: "bright:up", Name: fmt.Sprintf("Brightness Up %d%%", n), Icon: "󰃠", Group: "display",
-			Cmd: fmt.Sprintf("brightness %d%%+", n)}}
+			Cmd: portable.Brightness(fmt.Sprintf("+%d", n))}}
 	case ok && sign == "-":
 		return []action.Action{{ID: "bright:down", Name: fmt.Sprintf("Brightness Down %d%%", n), Icon: "󰃞", Group: "display",
-			Cmd: fmt.Sprintf("brightness %d%%-", n)}}
+			Cmd: portable.Brightness(fmt.Sprintf("-%d", n))}}
 	case ok && n >= 1:
 		return []action.Action{{
 			ID: "bright:set", Name: fmt.Sprintf("Brightness %d%%", n), Icon: "󰃟", Group: "display",
-			Cmd: fmt.Sprintf("brightness %d%%", n),
+			Cmd: portable.Brightness(strconv.Itoa(n)),
 		}}
 	}
 	var acts []action.Action
 	for _, n := range []int{10, 30, 60, 100} {
 		acts = append(acts, action.Action{
 			ID: fmt.Sprintf("bright:%d", n), Name: fmt.Sprintf("Brightness %d%%", n), Icon: "󰃟", Group: "display",
-			Cmd: fmt.Sprintf("brightness %d%%", n),
+			Cmd: portable.Brightness(strconv.Itoa(n)),
 		})
 	}
 	return acts

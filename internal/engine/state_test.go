@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"github.com/tuklu/nZlauncher/internal/action"
 	"os"
 	"path/filepath"
 	"slices"
@@ -67,5 +68,22 @@ func TestCacheFollowsChanges(t *testing.T) {
 	names(t, "zebra")
 	if after := cache.stats["two"].Hits; after != before+1 {
 		t.Fatalf("recorded launch not counted: %d -> %d", before, after)
+	}
+}
+
+func TestInstalled(t *testing.T) {
+	cases := map[string]struct {
+		a    action.Action
+		want bool
+	}{
+		"present":         {action.Action{Cmd: "sh -c true"}, true},
+		"missing":         {action.Action{Cmd: "no-such-program-nz --flag"}, false},
+		"env first":       {action.Action{Cmd: "FOO=1 sh -c true"}, true},
+		"requires absent": {action.Action{Cmd: "sh -c true", Requires: []string{"no-such-program-nz"}}, false},
+	}
+	for name, c := range cases {
+		if got := installed(c.a); got != c.want {
+			t.Errorf("%s: got %v", name, got)
+		}
 	}
 }

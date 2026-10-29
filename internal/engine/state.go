@@ -17,6 +17,7 @@ import (
 	"github.com/tuklu/nZlauncher/internal/icons"
 	"github.com/tuklu/nZlauncher/internal/learn"
 	"github.com/tuklu/nZlauncher/internal/platform"
+	"github.com/tuklu/nZlauncher/internal/portable"
 	"github.com/tuklu/nZlauncher/internal/providers"
 	"github.com/tuklu/nZlauncher/internal/sysinfo"
 )
@@ -120,7 +121,13 @@ func (s *state) snapshot(now time.Time) (snapshot, error) {
 	}
 
 	actions := make([]action.Action, 0, len(s.catalog.Actions)+len(s.apps))
-	actions = append(append(actions, s.catalog.Actions...), s.apps...)
+	// checked per query, so a tool installed later shows up within a minute
+	for _, a := range s.catalog.Actions {
+		if installed(a) {
+			actions = append(actions, a)
+		}
+	}
+	actions = append(actions, s.apps...)
 	return snapshot{actions: actions, stats: s.stats, model: s.model, ssid: s.ssid, settings: s.settings}, nil
 }
 
@@ -144,6 +151,26 @@ func (s *state) refreshSettings() {
 var groupIcons = map[string]string{
 	"power": "\U000f0425", "toggle": "\U000f0a1e", "capture": "\U000f0100", "info": "\U000f02fd",
 	"app": "\U000f003b", "tweak": "\U000f0493",
+}
+
+// installed reports whether a catalog entry's programs are on PATH: the
+// first word of its command, past any VAR=value, and what it requires.
+func installed(a action.Action) bool {
+	for _, word := range strings.Fields(a.Cmd) {
+		if strings.Contains(word, "=") {
+			continue
+		}
+		if !portable.Have(word) {
+			return false
+		}
+		break
+	}
+	for _, program := range a.Requires {
+		if !portable.Have(program) {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *state) refreshCatalog() {

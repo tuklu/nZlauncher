@@ -14,6 +14,9 @@ type Action struct {
 	Hint string `toml:"hint"`
 	// Preview is a file a face may show beside the list: an image, or text.
 	Preview string `toml:"-"`
+	// Requires names programs the command needs besides its first word;
+	// a catalog entry whose programs are not installed is hidden.
+	Requires []string `toml:"requires"`
 }
 
 // Badge is what goes in the right-hand column.

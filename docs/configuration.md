@@ -127,9 +127,23 @@ cmd = "loginctl lock-session"
 | `icon` | no | a Nerd Font glyph |
 | `group` | no | shown as the badge on the right. Typing the group name lists the whole group |
 | `keywords` | no | extra words to match on |
+| `requires` | no | programs the command needs besides its first word, like `["hyprpicker"]` for `pkill hyprpicker \|\| hyprpicker -a` |
 
-The defaults call some helper scripts (`screenshot`, `ocr`, `reminder`,
-`brightness`, ...). Point `cmd` at whatever your system uses.
+An entry whose programs aren't installed is hidden rather than failing
+when picked: the first word of `cmd` (past any `VAR=value`) and everything
+in `requires` have to be on PATH. That's checked as you type, so a tool
+installed later shows up within a minute.
+
+The defaults include entries for helper scripts some setups have
+(`screenshot`, `ocr`, `screenrecord`, `battery-status`); without them those
+entries simply don't show. Point `cmd` at whatever your system uses.
+
+What the built-in results run adapts the same way: neZha's scripts when
+they are there (`osd`, `brightness`, `launch-tui`, `reminder`), otherwise
+swayosd-client or wpctl or pactl for volume, swayosd-client or brightnessctl
+for brightness, xdg-terminal-exec, `$TERMINAL` or the first terminal found
+for TUIs, a systemd user timer with notify-send for reminders, and
+`uwsm-app` only when uwsm is installed.
 
 ## Icon libraries
 
