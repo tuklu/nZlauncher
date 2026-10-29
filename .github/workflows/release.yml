@@ -38,30 +38,39 @@ jobs:
           echo "PKG_CONFIG_PATH=/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/local/lib/pkgconfig" >> "$GITHUB_ENV"
 
       - name: build
-        run: go build -ldflags "-s -w" -o nzlauncher-linux-amd64 ./cmd/nzlauncher
+        run: |
+          CGO_ENABLED=0 go build -ldflags "-s -w" -o nzlauncher-linux-amd64 ./cmd/nzlauncher
+          go build -ldflags "-s -w" -o nzlauncher-gtk-linux-amd64 ./cmd/nzlauncher-gtk
 
       # nzlauncher-bin PKGBUILD with this version and real checksums, ready
       # to copy to the AUR
+      # nzlauncher-bin PKGBUILD with this version and real checksums, ready
+      # to copy to the AUR. The files are listed in the order of its source=().
       - name: package files
         run: |
-          v=${GITHUB_REF_NAME#v}
-          bin_sum=$(sha256sum nzlauncher-linux-amd64 | cut -d' ' -f1)
-          lic_sum=$(sha256sum LICENSE | cut -d' ' -f1)
-          unit_sum=$(sha256sum packaging/systemd/nzlauncher.service | cut -d' ' -f1)
-          awk -v v="$v" -v b="$bin_sum" -v l="$lic_sum" -v u="$unit_sum" '
+          sums=$(sha256sum nzlauncher-linux-amd64 nzlauncher-gtk-linux-amd64 LICENSE \
+                 packaging/systemd/nzlauncher.service | cut -d' ' -f1 | tr '\n' ' ')
+          awk -v v="${GITHUB_REF_NAME#v}" -v sums="$sums" '
             /^pkgver=/ { print "pkgver=" v; next }
             /^pkgrel=/ { print "pkgrel=1"; next }
-            /^sha256sums=/ { print "sha256sums=('\''" b "'\''"; print "            '\''" l "'\''"; print "            '\''" u "'\'')"; skip=1; next }
-            skip && /\)/ { skip=0; next }
+            /^sha256sums=/ {
+              n = split(sums, s, " ")
+              for (i = 1; i <= n; i++) {
+                line = (i == 1 ? "sha256sums=(" : "            ") "\047" s[i] "\047"
+                print line (i == n ? ")" : "")
+              }
+              skip = 1; next
+            }
+            skip && /\)/ { skip = 0; next }
             skip { next }
             { print }' packaging/arch-bin/PKGBUILD > PKGBUILD
-          sha256sum nzlauncher-linux-amd64 > SHA256SUMS
+          sha256sum nzlauncher-linux-amd64 nzlauncher-gtk-linux-amd64 > SHA256SUMS
 
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          files="nzlauncher-linux-amd64 PKGBUILD SHA256SUMS"
+          files="nzlauncher-linux-amd64 nzlauncher-gtk-linux-amd64 PKGBUILD SHA256SUMS"
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" $files --clobber
           else

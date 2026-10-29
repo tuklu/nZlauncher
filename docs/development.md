@@ -10,7 +10,8 @@ sudo pacman -S go gtk4 gtk4-layer-shell
 # .github/workflows/ci.yml has the build-from-source steps.
 sudo apt install golang libgtk-4-dev libgirepository1.0-dev
 
-go build -o nzlauncher ./cmd/nzlauncher
+CGO_ENABLED=0 go build -o nzlauncher ./cmd/nzlauncher   # CLI, engine, TUI, daemon: no GTK
+go build -o nzlauncher-gtk ./cmd/nzlauncher-gtk          # the GTK face
 go vet ./...
 ```
 

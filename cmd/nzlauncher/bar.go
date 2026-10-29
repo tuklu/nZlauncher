@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
@@ -20,8 +21,9 @@ func runBar(initial string) error {
 
 	// no leading dashes, or pkill reads the pattern as an option
 	killed := exec.Command("pkill", "-f", "class="+regexp.QuoteMeta(identity.TUIClass)).Run() == nil
-	// anchored to our own binary so an unrelated command line never matches
-	if exec.Command("pkill", "-f", "^"+regexp.QuoteMeta(self)+" gtk").Run() == nil {
+	gtkBin, gtkErr := gtkBinary()
+	// anchored to the binary path so an unrelated command line never matches
+	if gtkErr == nil && exec.Command("pkill", "-f", "^"+regexp.QuoteMeta(gtkBin)+"( |$)").Run() == nil {
 		killed = true
 	}
 	if killed {
@@ -41,7 +43,10 @@ func runBar(initial string) error {
 
 	var cmd *exec.Cmd
 	if loadSettings().UI() == "gtk" {
-		cmd = exec.Command(self, "gtk", initial)
+		if gtkErr != nil {
+			return fmt.Errorf("interface = \"gtk\" needs nzlauncher-gtk: %w", gtkErr)
+		}
+		cmd = exec.Command(gtkBin, initial)
 	} else {
 		cmd = exec.Command("ghostty",
 			"--class="+identity.TUIClass,

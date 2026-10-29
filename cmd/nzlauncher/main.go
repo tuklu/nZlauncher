@@ -4,14 +4,16 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/engine"
 	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/server"
 	"github.com/tuklu/nZlauncher/internal/shell"
-	"github.com/tuklu/nZlauncher/internal/ui/gtk"
 	"github.com/tuklu/nZlauncher/internal/ui/tui"
 )
 
@@ -32,7 +34,7 @@ func main() {
 	case "pick":
 		err = runPick(os.Args[2:])
 	case "gtk":
-		err = runGTK(strings.Join(os.Args[2:], " "))
+		err = runGTK(os.Args[2:])
 	case "serve":
 		err = server.Serve()
 	case "focus":
@@ -86,6 +88,21 @@ func loadSettings() config.Settings {
 	return catalog.Settings
 }
 
-func runGTK(initial string) error {
-	return gtk.Run(initial, loadSettings().GTKMode())
+// The GTK face lives in nzlauncher-gtk, next to this binary or on PATH.
+func gtkBinary() (string, error) {
+	if self, err := os.Executable(); err == nil {
+		sibling := filepath.Join(filepath.Dir(self), "nzlauncher-gtk")
+		if _, err := os.Stat(sibling); err == nil {
+			return sibling, nil
+		}
+	}
+	return exec.LookPath("nzlauncher-gtk")
+}
+
+func runGTK(args []string) error {
+	bin, err := gtkBinary()
+	if err != nil {
+		return fmt.Errorf("the GTK face needs nzlauncher-gtk: %w", err)
+	}
+	return syscall.Exec(bin, append([]string{bin}, args...), os.Environ())
 }
