@@ -36,3 +36,28 @@ jobs:
 
       - name: build
         run: go build ./...
+
+      - name: test
+        run: go test ./...
+
+  # the D-Bus backends against fake services: NetworkManager, the
+  # power-profiles API and BlueZ from python-dbusmock, on private buses
+  dbusmock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: dbus and python-dbusmock
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dbus python3-dbus python3-venv
+          python3 -m venv --system-site-packages "$RUNNER_TEMP/mock"
+          "$RUNNER_TEMP/mock/bin/pip" install python-dbusmock==0.38.1
+
+      - name: test against the fakes
+        run: '"$RUNNER_TEMP/mock/bin/python" test/dbusmock/run.py -v ./internal/wifi ./internal/tweaks ./internal/bluez'
+

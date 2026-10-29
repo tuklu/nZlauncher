@@ -162,19 +162,49 @@ func nmConnect(conn *dbus.Conn, ssid string) error {
 		return nm.Call("org.freedesktop.NetworkManager.ActivateConnection", 0, profile, dev, dbus.ObjectPath("/")).Err
 	}
 	// an open network needs no profile: NM makes one from the access point
-	state, err := nmFetch(conn)
-	if err != nil {
-		return err
+	ap, security, ok := nmAccessPoint(conn, dev, ssid)
+	if !ok {
+		return fmt.Errorf("%s is not in range", ssid)
 	}
-	for _, n := range state.Networks {
-		if n.SSID == ssid && n.Security == "open" {
-			settings := map[string]map[string]dbus.Variant{
-				"802-11-wireless": {"ssid": dbus.MakeVariant([]byte(ssid))},
-			}
-			return nm.Call("org.freedesktop.NetworkManager.AddAndActivateConnection", 0, settings, dev, dbus.ObjectPath("/")).Err
+	if security != "open" {
+		return fmt.Errorf("%s needs a passphrase", ssid)
+	}
+	// NM fills in the rest; naming the profile after the network keeps it
+	// readable in nmcli and settings
+	settings := map[string]map[string]dbus.Variant{
+		"connection":      {"id": dbus.MakeVariant(ssid), "type": dbus.MakeVariant("802-11-wireless")},
+		"802-11-wireless": {"ssid": dbus.MakeVariant([]byte(ssid))},
+	}
+	return nm.Call("org.freedesktop.NetworkManager.AddAndActivateConnection", 0, settings, dev, ap).Err
+}
+
+// nmAccessPoint is the strongest access point of a network and its security.
+func nmAccessPoint(conn *dbus.Conn, dev dbus.ObjectPath, ssid string) (dbus.ObjectPath, string, bool) {
+	wireless, err := getAll(conn, dev, "org.freedesktop.NetworkManager.Device.Wireless")
+	if err != nil {
+		return "", "", false
+	}
+	aps, _ := wireless["AccessPoints"].Value().([]dbus.ObjectPath)
+	var best dbus.ObjectPath
+	strongest, security := -1, ""
+	for _, ap := range aps {
+		props, err := getAll(conn, ap, "org.freedesktop.NetworkManager.AccessPoint")
+		if err != nil {
+			continue
+		}
+		if name, _ := props["Ssid"].Value().([]byte); string(name) != ssid {
+			continue
+		}
+		strength, _ := props["Strength"].Value().(byte)
+		if int(strength) > strongest {
+			flags, _ := props["Flags"].Value().(uint32)
+			wpa, _ := props["WpaFlags"].Value().(uint32)
+			rsn, _ := props["RsnFlags"].Value().(uint32)
+			n := nmNetworks([]accessPoint{{ssid, int(strength), flags, wpa, rsn, false}}, nil)[0]
+			best, strongest, security = ap, int(strength), n.Security
 		}
 	}
-	return fmt.Errorf("%s needs a passphrase", ssid)
+	return best, security, best != ""
 }
 
 func nmDisconnect(conn *dbus.Conn) error {
