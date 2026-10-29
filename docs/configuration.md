@@ -138,12 +138,41 @@ The defaults include entries for helper scripts some setups have
 (`screenshot`, `ocr`, `screenrecord`, `battery-status`); without them those
 entries simply don't show. Point `cmd` at whatever your system uses.
 
-What the built-in results run adapts the same way: neZha's scripts when
-they are there (`osd`, `brightness`, `launch-tui`, `reminder`), otherwise
-swayosd-client or wpctl or pactl for volume, swayosd-client or brightnessctl
-for brightness, xdg-terminal-exec, `$TERMINAL` or the first terminal found
-for TUIs, a systemd user timer with notify-send for reminders, and
-`uwsm-app` only when uwsm is installed.
+### Commands
+
+What the built-in results run (volume, brightness, terminals, reminders,
+opening apps and files) is settled in three steps:
+
+1. **Yours:** the `[commands]` table in config.toml.
+2. **Detected:** neZha's scripts when they are there (`osd`, `brightness`,
+   `launch-tui`, `reminder`), otherwise the first installed of
+   swayosd-client, wpctl, pactl for volume; swayosd-client, brightnessctl
+   for brightness; xdg-terminal-exec, `$TERMINAL` or a known terminal;
+   a systemd user timer with notify-send for reminders; `uwsm-app` when
+   uwsm is installed.
+3. **Fallback:** the plain command, or nothing when it can't work (no
+   terminal means no terminal results).
+
+```toml
+[commands]
+terminal = "foot -e {cmd}"
+volume_up = "pamixer --increase {n}"
+volume_down = "pamixer --decrease {n}"
+open = "handlr open {target}"
+```
+
+| Key | Placeholders |
+|---|---|
+| `app` | `{cmd}`: the app's command line |
+| `open` | `{target}`: a file or URL, quoted for you |
+| `terminal` | `{cmd}`: what to run in it |
+| `volume`, `volume_up`, `volume_down` | `{n}`: percent, always positive |
+| `mute`, `unmute` | none |
+| `brightness`, `brightness_up`, `brightness_down` | `{n}`: percent, always positive |
+| `remind` | `{minutes}`, `{text}` (quoted for you) |
+
+`nzlauncher setup` lists every command and what decided it: `config.toml`,
+the program it found, or `fallback`.
 
 ## Icon libraries
 

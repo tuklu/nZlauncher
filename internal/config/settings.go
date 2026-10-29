@@ -43,6 +43,8 @@ type Settings struct {
 	Fallbacks map[string]bool `toml:"fallbacks"`
 	// capability -> backend, over what is detected: wifi = "iwd"
 	Backends map[string]string `toml:"backends"`
+	// command -> template, over what is detected: terminal = "foot -e {cmd}"
+	Commands map[string]string `toml:"commands"`
 }
 
 // The [settings] block catalog.toml carried before config.toml existed.

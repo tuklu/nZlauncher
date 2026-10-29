@@ -79,3 +79,22 @@
 # notifications = "mako"           # mako, swaync, dunst
 # nightlight = "hyprsunset"
 # idle = "hypridle"                 # whatever serves org.freedesktop.ScreenSaver
+
+[commands]
+# What the built-in results run is picked from what is installed: neZha's
+# scripts, then common tools (swayosd-client, wpctl, brightnessctl,
+# xdg-terminal-exec...). `nzlauncher setup` lists each one and why. Set one
+# here to use yours; {n} is a percent, {cmd} a command line, {target} a file
+# or URL, {minutes} and {text} a reminder's.
+# app = "uwsm-app -- {cmd}"
+# open = "handlr open {target}"
+# terminal = "foot -e {cmd}"
+# volume = "pamixer --set-volume {n}"
+# volume_up = "pamixer --increase {n}"
+# volume_down = "pamixer --decrease {n}"
+# mute = "pamixer --mute"
+# unmute = "pamixer --unmute"
+# brightness = "light -S {n}"
+# brightness_up = "light -A {n}"
+# brightness_down = "light -U {n}"
+# remind = "my-reminder {minutes} {text}"

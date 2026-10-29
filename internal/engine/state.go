@@ -145,6 +145,7 @@ func (s *state) refreshSettings() {
 	settings := s.settings
 	providers.Configure(settings.Provider)
 	platform.Configure(settings.Backends)
+	portable.Configure(settings.Commands)
 }
 
 // groupIcons stand in for a catalog entry that names no icon of its own.

@@ -6,6 +6,7 @@ import (
 
 	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/platform"
+	"github.com/tuklu/nZlauncher/internal/portable"
 )
 
 // runSetup prints what nzlauncher found on this machine and what drives
@@ -13,6 +14,7 @@ import (
 func runSetup() error {
 	settings, _ := config.LoadSettings()
 	platform.Configure(settings.Backends)
+	portable.Configure(settings.Commands)
 	detected, used := platform.Detect(), platform.Current()
 	row := func(name, found, chosen string) {
 		if found == "" {
@@ -38,5 +40,10 @@ func runSetup() error {
 		immutable = ", immutable: tweaks stay runtime only"
 	}
 	fmt.Printf("%-14s %s%s\n", "distro", detected.Distro, immutable)
+
+	fmt.Println("\ncommands (set in [commands] in config.toml)")
+	for _, r := range portable.Explain() {
+		fmt.Printf("  %-16s %-58s %s\n", r.Key, r.Command, "("+r.Source+")")
+	}
 	return nil
 }
