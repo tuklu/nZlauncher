@@ -5,8 +5,9 @@ One box for apps, windows, files, answers and system controls, ranked by
 what you actually open and when. No AI, no network for any of it (except
 currency rates, once a day, if you want them).
 
-Alpha. Wayland, Hyprland first; the rest of the system is detected, so it
-works with iwd or NetworkManager, mako or swaync or dunst, and so on.
+Alpha. Wayland. Windows and workspaces work on Hyprland, sway and niri;
+keybinds are Hyprland's. The rest of the system is detected, so it works
+with iwd or NetworkManager, mako or swaync or dunst, and so on.
 
 ```
  ╭──────────────────────────────────────────────╮

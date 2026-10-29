@@ -86,7 +86,9 @@ tlp-pd or tuned-ppd). `idle` is whatever serves
 `org.freedesktop.ScreenSaver`, which is what keep awake talks to.
 
 When NetworkManager runs it is the one used for Wi-Fi, even when it drives
-iwd underneath. `[backends]` overrides any of them:
+iwd underneath. `compositor` decides how windows and workspaces are handled: `hyprland`,
+`sway` or `niri`, each over its own socket. `[backends]` overrides any of
+them:
 
 ```toml
 [backends]

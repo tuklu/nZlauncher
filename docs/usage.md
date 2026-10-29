@@ -57,6 +57,11 @@ Generic names, desktop keywords and categories are all indexed, so
 Open windows show up next to the app, so typing `ghostty` gives you
 both "switch to it" and "open another one".
 
+Windows and the `ws` results work on Hyprland, sway and niri, through each
+one's own socket. From a script: `nzlauncher ws 3` switches to workspace
+3, `nzlauncher ws move 3` sends the focused window there, `nzlauncher focus
+<id>` focuses a window by the id the compositor gives it.
+
 Files show up too, without a prefix, when one matches strongly: its name
 or a word in it starts with what you typed, or it's a file you open
 often. At most two, and strong app matches keep the first places, so a

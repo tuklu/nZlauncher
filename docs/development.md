@@ -40,7 +40,16 @@ go test ./...                                   # unit tests, no services needed
 python3 test/dbusmock/run.py -v ./internal/wifi ./internal/tweaks ./internal/bluez
 ```
 
-The second runs the D-Bus backends against fake services: it starts
+```sh
+test/sway/run.sh -v ./internal/compositor       # needs sway and foot
+```
+
+That one starts a real sway with no screen (the headless backend, software
+rendering), opens a foot window in it and drives the compositor adapter:
+windows, events, workspaces, focus. niri is tested against a fake socket
+in the plain unit tests.
+
+The dbusmock run tests the D-Bus backends against fake services: it starts
 private system and session buses with python-dbusmock's NetworkManager,
 power-profiles and BlueZ in a known scene (`pip install python-dbusmock`,
 plus dbus-python), then the tests built with `-tags dbusmock`. The real
@@ -160,7 +169,8 @@ scripts/docs-to-wiki.sh . /tmp/wiki
 
 `dev` is the default branch and where work happens; releases are tags on
 it. PRs go to `dev`. CI runs `go vet`, `go build` and `go test` on every
-push and PR, and the dbusmock tests in a second job. The wiki is rebuilt
+push and PR, the dbusmock tests in a second job and headless sway in a
+third. The wiki is rebuilt
 from `docs/` on every docs change to `dev`.
 
 Commits are conventional: `feat:`, `fix:`, `refactor:`, `docs:`,
