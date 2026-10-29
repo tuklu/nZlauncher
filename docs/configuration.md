@@ -23,6 +23,8 @@ edits apply the next time you open the launcher. No rebuild, no reload.
 interface = "tui"       # tui | gtk
 gtk_mode = "overlay"    # overlay | window
 icon_library = "nerd"   # name of a file in icons/, without .toml
+wallpaper_dir = "~/Pictures/Wallpapers"
+wallpaper_cmd = "swaybg -m fill -i"
 ```
 
 `interface` picks the face that `nzlauncher bar` opens.
@@ -36,6 +38,14 @@ icon_library = "nerd"   # name of a file in icons/, without .toml
   apply.
 
 `icon_library` is covered below.
+
+`wallpaper_dir` is where the `wallpaper` prefix looks for images, and
+`wallpaper_cmd` sets one, with the image path appended. The provider stays
+quiet if that command isn't installed.
+
+The look comes from `theme/nz-gtk.css` and `theme/nz-tui.toml` next to the
+catalog when they exist, otherwise the built-in theme. nZlauncher never
+writes into `theme/`, so a desktop theme can link the whole directory in.
 
 ### Actions
 
