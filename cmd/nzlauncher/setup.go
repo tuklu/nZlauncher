@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 
 	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/platform"
@@ -27,6 +28,11 @@ func runSetup() error {
 	row("wifi", detected.Wifi, used.Wifi)
 	row("power", detected.Power, used.Power)
 	row("notifications", detected.Notifications, used.Notifications)
+	row("nightlight", detected.Nightlight, used.Nightlight)
+	row("idle", detected.Idle, used.Idle)
+	if _, err := exec.LookPath("tlp"); err == nil && detected.Power == "" {
+		fmt.Println("               TLP is installed: its tlp-pd package adds power profile switching")
+	}
 	immutable := ""
 	if detected.Immutable {
 		immutable = ", immutable: tweaks stay runtime only"

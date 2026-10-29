@@ -7,6 +7,8 @@ package platform
 import (
 	"bufio"
 	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,8 +21,10 @@ import (
 type Setup struct {
 	Compositor    string // hyprland, niri, sway, kde, gnome
 	Wifi          string // iwd, networkmanager, wpa_supplicant
-	Power         string // power-profiles-daemon, tuned
+	Power         string // the daemon serving the power-profiles API: power-profiles-daemon, tlp-pd, tuned-ppd
 	Notifications string // mako, swaync, dunst, ... as the daemon names itself
+	Nightlight    string // hyprsunset
+	Idle          string // the process serving org.freedesktop.ScreenSaver: hypridle, ksmserver, gnome-shell
 	Distro        string // ID from os-release
 	// config is read-only or rebuilt (NixOS, ostree), so a tweak has to be a
 	// runtime change, never an edit of a system file
@@ -28,7 +32,7 @@ type Setup struct {
 }
 
 // Capabilities are the keys [backends] takes.
-var Capabilities = []string{"compositor", "wifi", "power", "notifications"}
+var Capabilities = []string{"compositor", "wifi", "power", "notifications", "nightlight", "idle"}
 
 var (
 	overrides atomic.Pointer[map[string]string]
@@ -67,6 +71,10 @@ func Current() Setup {
 				s.Power = v
 			case "notifications":
 				s.Notifications = v
+			case "nightlight":
+				s.Nightlight = v
+			case "idle":
+				s.Idle = v
 			}
 		}
 	}
@@ -85,18 +93,80 @@ func Detect() Setup {
 			"net.connman.iwd":                "iwd",
 			"fi.w1.wpa_supplicant1":          "wpa_supplicant",
 		}, "org.freedesktop.NetworkManager", "net.connman.iwd", "fi.w1.wpa_supplicant1")
-		// power-profiles-daemon starts on its first call: installed counts
-		for n := range busNames(dbus.SystemBus, "ListActivatableNames") {
-			names[n] = true
-		}
-		s.Power = first(names, map[string]string{
-			"org.freedesktop.UPower.PowerProfiles": "power-profiles-daemon",
-			"net.hadess.PowerProfiles":             "power-profiles-daemon",
-			"com.redhat.tuned":                     "tuned",
-		}, "org.freedesktop.UPower.PowerProfiles", "net.hadess.PowerProfiles", "com.redhat.tuned")
+		s.Power = powerDaemon(names)
+	}
+	if session, err := dbus.SessionBus(); err == nil {
+		s.Idle = ownerProcess(session, "org.freedesktop.ScreenSaver")
+	}
+	if _, err := exec.LookPath("hyprsunset"); err == nil && s.Compositor == "hyprland" {
+		s.Nightlight = "hyprsunset"
 	}
 	s.Notifications = notificationServer()
 	return s
+}
+
+// powerAPI is the power-profiles D-Bus API. power-profiles-daemon, tlp-pd
+// and tuned-ppd all serve it, so one backend drives the three.
+var powerAPI = []string{"org.freedesktop.UPower.PowerProfiles", "net.hadess.PowerProfiles"}
+
+// powerDaemon names the daemon behind the power-profiles API: the one running,
+// or the one that starts on the first call, unless its unit is masked.
+func powerDaemon(running map[string]bool) string {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return ""
+	}
+	for _, name := range powerAPI {
+		if running[name] {
+			return ownerProcess(conn, name)
+		}
+	}
+	activatable := busNames(dbus.SystemBus, "ListActivatableNames")
+	for _, name := range powerAPI {
+		if !activatable[name] {
+			continue
+		}
+		unit := activationUnit(name)
+		if unit == "" || unitFileState(conn, unit) == "masked" {
+			continue
+		}
+		return strings.TrimSuffix(unit, ".service")
+	}
+	return ""
+}
+
+// activationUnit reads which systemd unit the bus starts for a name.
+func activationUnit(name string) string {
+	data, err := os.ReadFile("/usr/share/dbus-1/system-services/" + name + ".service")
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if unit, ok := strings.CutPrefix(strings.TrimSpace(line), "SystemdService="); ok {
+			return unit
+		}
+	}
+	return ""
+}
+
+func unitFileState(conn *dbus.Conn, unit string) string {
+	var state string
+	conn.Object("org.freedesktop.systemd1", "/org/freedesktop/systemd1").
+		Call("org.freedesktop.systemd1.Manager.GetUnitFileState", 0, unit).Store(&state)
+	return state
+}
+
+// ownerProcess is the process name of whoever owns a bus name.
+func ownerProcess(conn *dbus.Conn, name string) string {
+	var pid uint32
+	if conn.BusObject().Call("org.freedesktop.DBus.GetConnectionUnixProcessID", 0, name).Store(&pid) != nil {
+		return ""
+	}
+	comm, err := os.ReadFile("/proc/" + strconv.Itoa(int(pid)) + "/comm")
+	if err != nil {
+		return name
+	}
+	return strings.TrimSpace(string(comm))
 }
 
 func first(names map[string]bool, backend map[string]string, order ...string) string {
