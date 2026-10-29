@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// Filter is a file query. Every set field must hold; Terms must all appear
-// in the file name.
+// Filter is a file query. Every set field must hold. Each term must land in
+// the file name or its folder path, at least one in the name.
 type Filter struct {
 	Terms   []string // lowercase
 	Exts    []string // lowercase, without the dot
@@ -20,6 +20,9 @@ type Filter struct {
 	MaxSize int64
 	InDirs  []string // only under these (absolute) directories
 	Limit   int
+	// when nothing matches as typed, try the terms' letters in order
+	// ("cfgtoml"); that pass reads every name, so only explicit file searches ask
+	Fuzzy bool
 }
 
 func (f Filter) Empty() bool {
@@ -31,6 +34,10 @@ type Hit struct {
 	Path    string
 	Size    int64
 	ModTime time.Time
+	// Strong: every term landed at the start of the name or of a word in
+	// it, or the user opens this file; good enough to show among apps
+	Strong bool
+	Buried bool // under a dot folder or in a build tree
 }
 
 // match is a hit before its path is built: only the winners get one.
@@ -40,6 +47,7 @@ type match struct {
 	mtime  int64
 	depth  int32 // length of the directory path, shallower ranks first
 	buried bool
+	strong bool
 }
 
 // Search answers from the index; ok is false when it is not built yet.
@@ -65,6 +73,28 @@ func Search(f Filter) (hits []Hit, ok bool) {
 		}
 	}
 	c := newCollector(ix, f)
+	collect(c, ix, f, lo, hi, byType)
+	if len(c.top) == 0 && f.Fuzzy && len(f.Terms) > 0 {
+		c = newCollector(ix, f)
+		c.fuzzy = true
+		inParallel(c, hi-lo, func(part *collector, a, b int) {
+			for i := lo + a; i < lo+b; i++ {
+				part.consider(i)
+			}
+		})
+	}
+
+	for _, m := range c.top {
+		e := &ix.entries[m.entry]
+		hits = append(hits, Hit{Path: ix.path(e), Size: e.Size, ModTime: time.Unix(e.ModTime, 0), Strong: m.strong, Buried: m.buried})
+	}
+	return hits, true
+}
+
+// collect walks the smallest set that holds every match: the terms'
+// trigram lists, the files of the asked types, or the run of entries under
+// the asked folders.
+func collect(c *collector, ix *index, f Filter, lo, hi, byType int) {
 	if cands, ok := ix.candidates(f.Terms); ok && len(cands) <= max(hi-lo, 0) {
 		considerList(c, cands)
 	} else if byType >= 0 && byType < hi-lo {
@@ -78,12 +108,6 @@ func Search(f Filter) (hits []Hit, ok bool) {
 	} else {
 		scanAll(c)
 	}
-
-	for _, m := range c.top {
-		e := &ix.entries[m.entry]
-		hits = append(hits, Hit{Path: ix.path(e), Size: e.Size, ModTime: time.Unix(e.ModTime, 0)})
-	}
-	return hits, true
 }
 
 func (f Filter) passes(ix *index, i int, dirOK []int8) bool {
@@ -126,26 +150,6 @@ func hasExt(name []byte, exts []string) bool {
 		}
 	}
 	return false
-}
-
-// A term at the start of the name beats one at a word start, which beats one
-// anywhere. No terms matches everything equally.
-func nameScore(name string, terms []string) (int, bool) {
-	score := 0
-	for _, t := range terms {
-		i := strings.Index(name, t)
-		switch {
-		case i < 0:
-			return 0, false
-		case i == 0:
-			score += 3
-		case strings.ContainsRune(" _-.", rune(name[i-1])):
-			score += 2
-		default:
-			score++
-		}
-	}
-	return score, true
 }
 
 // searchRange finds matches among entries [lo, hi).
@@ -204,21 +208,42 @@ func searchRange(c *collector, lo, hi int) {
 	}
 }
 
-// candidates is the shortest trigram list among the terms' trigrams: every
-// match is in it. Terms under three letters have no trigram to narrow by.
+// candidates holds every entry a term can land in by name: for each term,
+// its shortest trigram list, and the union of those. A term under three
+// letters has no trigram to narrow by, so then there is no list.
 func (ix *index) candidates(terms []string) ([]uint32, bool) {
-	var best []uint32
-	found := false
+	var lists [][]uint32
 	for _, t := range terms {
+		if len(t) < 3 {
+			return nil, false
+		}
+		var best []uint32
 		for k := 0; k+3 <= len(t); k++ {
 			span := ix.trigrams[trigram(t[k:])]
 			list := ix.postings[span[0] : span[0]+span[1]]
-			if !found || len(list) < len(best) {
-				best, found = list, true
+			if k == 0 || len(list) < len(best) {
+				best = list
+			}
+		}
+		lists = append(lists, best)
+	}
+	switch len(lists) {
+	case 0:
+		return nil, false
+	case 1:
+		return lists[0], true
+	}
+	seen := make([]uint64, len(ix.entries)/64+1)
+	var union []uint32
+	for _, list := range lists {
+		for _, id := range list {
+			if seen[id/64]&(1<<(id%64)) == 0 {
+				seen[id/64] |= 1 << (id % 64)
+				union = append(union, id)
 			}
 		}
 	}
-	return best, found
+	return union, true
 }
 
 // Lists and ranges this long are split across cores.
@@ -247,6 +272,7 @@ func inParallel(c *collector, n int, search func(part *collector, lo, hi int)) {
 	var wg sync.WaitGroup
 	for p := range parts {
 		results[p] = newCollector(c.ix, c.f)
+		results[p].fuzzy = c.fuzzy
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -266,6 +292,7 @@ func inParallel(c *collector, n int, search func(part *collector, lo, hi int)) {
 type collector struct {
 	ix    *index
 	f     Filter
+	fuzzy bool
 	dirOK []int8 // per directory: 0 not checked yet, 1 inside InDirs, -1 outside
 	top   []match
 }
@@ -284,14 +311,20 @@ func (c *collector) consider(i int) {
 		return
 	}
 	e := &ix.entries[i]
-	score := 0
+	score, strong := 0, false
 	if len(f.Terms) > 0 {
-		var matched bool
-		if score, matched = nameScore(ix.lowerName(i), f.Terms); !matched {
+		var ok bool
+		if score, strong, ok = ix.scoreEntry(i, f.Terms, c.fuzzy); !ok {
 			return
 		}
 	}
-	c.add(match{entry: int32(i), score: int32(score), mtime: e.ModTime, depth: int32(len(ix.dirs[e.dir])), buried: ix.buried[e.dir]})
+	// a file the user opens outranks a better spelled one they never do
+	if boost := ix.boostOf(int32(i)); boost > 0 {
+		score += boost
+		strong = strong || len(f.Terms) > 0
+	}
+	c.add(match{entry: int32(i), score: int32(score), mtime: e.ModTime, depth: int32(len(ix.dirs[e.dir])),
+		buried: ix.buried[e.dir], strong: strong})
 }
 
 // best match first; among equals the user's own, the newer, the shallower file

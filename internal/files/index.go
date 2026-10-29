@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 // A full walk of a large home takes seconds of CPU; the watched directories
@@ -52,6 +53,11 @@ type index struct {
 	firstEntry, lastEntry []uint32
 	// dir indexes by path: everything under a folder is one block of it
 	sortedDirs []uint32
+	// each folder lowercased and relative to its root, for terms that land
+	// in the path: "nzlauncher config" finds ~/.config/nzlauncher/config.toml
+	lowerDirs []string
+	// files the user opens, resolved to entries once per boost list
+	boost atomic.Pointer[resolvedBoost]
 }
 
 func (ix *index) path(e *Entry) string {
@@ -145,6 +151,7 @@ func build(c Config) *index {
 				dirOf[dir] = idx
 				ix.dirs = append(ix.dirs, dir)
 				ix.buried = append(ix.buried, isBuried(strings.TrimPrefix(dir, root)))
+				ix.lowerDirs = append(ix.lowerDirs, strings.ToLower(strings.TrimPrefix(dir, root)))
 				ix.firstEntry = append(ix.firstEntry, uint32(len(ix.entries)))
 				ix.lastEntry = append(ix.lastEntry, 0)
 			}
@@ -201,8 +208,14 @@ func (ix *index) nameBytes(i int) []byte {
 	return ix.names[ix.offsets[i]:end]
 }
 
+// lowerName views the packed name as a string without copying it: the
+// buffer is never written after the build, which is what makes that safe.
 func (ix *index) lowerName(i int) string {
-	return string(ix.nameBytes(i))
+	b := ix.nameBytes(i)
+	if len(b) == 0 {
+		return ""
+	}
+	return unsafe.String(&b[0], len(b))
 }
 
 func excluded(root, path, name string, exclude []string) bool {
@@ -303,4 +316,54 @@ func (ix *index) span(dirs []string) (lo, hi int) {
 		}
 	}
 	return lo, hi
+}
+
+// Boosts are points for files the user opens, by absolute path; the engine
+// sets them from its launch history and the desktop's recent files.
+var boosts atomic.Pointer[map[string]int]
+
+func SetBoosts(points map[string]int) {
+	boosts.Store(&points)
+}
+
+type resolvedBoost struct {
+	from    *map[string]int
+	entries map[int32]int
+}
+
+// boostOf is entry i's points. The path list is resolved to entries the
+// first time a search sees it with this index: a folder lookup by binary
+// search, then a scan of that folder's own run.
+func (ix *index) boostOf(i int32) int {
+	src := boosts.Load()
+	if src == nil {
+		return 0
+	}
+	r := ix.boost.Load()
+	if r == nil || r.from != src {
+		r = &resolvedBoost{from: src, entries: map[int32]int{}}
+		for path, points := range *src {
+			if e, ok := ix.find(path); ok {
+				r.entries[e] = points
+			}
+		}
+		ix.boost.Store(r)
+	}
+	return r.entries[i]
+}
+
+// find is the entry for an absolute path.
+func (ix *index) find(path string) (int32, bool) {
+	dir, name := filepath.Dir(path), filepath.Base(path)
+	k, found := slices.BinarySearchFunc(ix.sortedDirs, dir, func(d uint32, p string) int { return strings.Compare(ix.dirs[d], p) })
+	if !found {
+		return 0, false
+	}
+	d := ix.sortedDirs[k]
+	for e := ix.firstEntry[d]; e <= ix.lastEntry[d] && int(e) < len(ix.entries); e++ {
+		if ix.entries[e].dir == int32(d) && ix.entries[e].Name == name {
+			return int32(e), true
+		}
+	}
+	return 0, false
 }

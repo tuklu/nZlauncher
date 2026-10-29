@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -99,5 +100,59 @@ func TestFolderSpanExtListsHiddenLast(t *testing.T) {
 	// newest first, but dot folders and build trees after the user's files
 	if got := names(Filter{Exts: []string{"png"}}); !slices.Equal(got, []string{"three.png", "one.png", "two.png", "newest.png", "gen.png"}) {
 		t.Fatalf("ext list order: %v", got)
+	}
+}
+
+func TestRanking(t *testing.T) {
+	root := t.TempDir()
+	mk := func(rel string) {
+		p := filepath.Join(root, rel)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte("x"), 0o644)
+		when := time.Now().Add(-time.Hour)
+		os.Chtimes(p, when, when)
+	}
+	mk("notes/old-reconfig-backup.txt")
+	mk("notes/config.toml")
+	mk("notes/myConfigNotes.md")
+	mk(".config/nzlauncher/config.toml")
+	mk("work/invoice-march.pdf")
+	current.Store(build(Config{Roots: []string{root}}))
+	defer SetBoosts(nil)
+
+	names := func(f Filter) []string {
+		hits, _ := Search(f)
+		var out []string
+		for _, h := range hits {
+			out = append(out, strings.TrimPrefix(h.Path, root+"/"))
+		}
+		return out
+	}
+	// the stem first, a word start next, mid-word last; the dot folder copy
+	// of config.toml loses only to its visible twin
+	got := names(Filter{Terms: []string{"config"}})
+	want := []string{"notes/config.toml", ".config/nzlauncher/config.toml", "notes/myConfigNotes.md", "notes/old-reconfig-backup.txt"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("config: %v", got)
+	}
+	// a term may land in the path
+	if got := names(Filter{Terms: []string{"nzlauncher", "config"}}); !slices.Equal(got, []string{".config/nzlauncher/config.toml"}) {
+		t.Fatalf("path term: %v", got)
+	}
+	// letters in order, only when asked and only when nothing matches as typed
+	if got := names(Filter{Terms: []string{"invmar"}}); len(got) != 0 {
+		t.Fatalf("fuzzy without asking: %v", got)
+	}
+	if got := names(Filter{Terms: []string{"invmar"}, Fuzzy: true}); !slices.Equal(got, []string{"work/invoice-march.pdf"}) {
+		t.Fatalf("fuzzy: %v", got)
+	}
+	// a file the user opens beats a better spelled one
+	SetBoosts(map[string]int{filepath.Join(root, "notes/old-reconfig-backup.txt"): 30})
+	if got := names(Filter{Terms: []string{"config"}}); got[0] != "notes/old-reconfig-backup.txt" {
+		t.Fatalf("boost: %v", got)
+	}
+	hits, _ := Search(Filter{Terms: []string{"config"}})
+	if !hits[0].Strong {
+		t.Fatalf("a boosted hit is strong")
 	}
 }

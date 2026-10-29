@@ -27,7 +27,9 @@ func Files(q string) []action.Action {
 	if strings.TrimSpace(q) == "" {
 		return recentFiles(15)
 	}
-	return FilterFiles(intent.Files(q, time.Now()).Filter)
+	f := intent.Files(q, time.Now()).Filter
+	f.Fuzzy = true
+	return FilterFiles(f)
 }
 
 // FilterFiles answers a file query from the index, or from fd while the
@@ -233,7 +235,22 @@ func fileIcon(path string) string {
 }
 
 func recentFiles(n int) []action.Action {
-	data, err := os.ReadFile(filepath.Join(os.Getenv("HOME"), ".local/share/recently-used.xbel"))
+	var acts []action.Action
+	for _, path := range RecentPaths(n) {
+		acts = append(acts, fileAction(path))
+	}
+	return acts
+}
+
+// RecentFilesPath is the desktop's list of recently used files.
+func RecentFilesPath() string {
+	return filepath.Join(os.Getenv("HOME"), ".local/share/recently-used.xbel")
+}
+
+// RecentPaths are the n most recently used files that still exist, newest
+// first, from the desktop's recently-used list.
+func RecentPaths(n int) []string {
+	data, err := os.ReadFile(RecentFilesPath())
 	if err != nil {
 		return nil
 	}
@@ -252,7 +269,7 @@ func recentFiles(n int) []action.Action {
 		return xbel.Bookmarks[i].Modified > xbel.Bookmarks[j].Modified
 	})
 
-	var acts []action.Action
+	var paths []string
 	for _, b := range xbel.Bookmarks {
 		path, ok := strings.CutPrefix(b.Href, "file://")
 		if !ok {
@@ -264,10 +281,10 @@ func recentFiles(n int) []action.Action {
 		if _, err := os.Stat(path); err != nil {
 			continue
 		}
-		acts = append(acts, fileAction(path))
-		if len(acts) == n {
+		paths = append(paths, path)
+		if len(paths) == n {
 			break
 		}
 	}
-	return acts
+	return paths
 }

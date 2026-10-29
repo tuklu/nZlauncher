@@ -12,6 +12,7 @@ import (
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/config"
+	"github.com/tuklu/nZlauncher/internal/files"
 	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/icons"
 	"github.com/tuklu/nZlauncher/internal/learn"
@@ -48,6 +49,8 @@ type state struct {
 
 	ssid   string
 	ssidAt time.Time
+
+	boostStamp string // events offset and the recent files list it was built from
 
 	windows []action.Action
 }
@@ -111,6 +114,7 @@ func (s *state) snapshot(now time.Time) (snapshot, error) {
 	}
 	s.refreshApps()
 	s.refreshLearned()
+	s.refreshFileBoosts(now)
 	if now.Sub(s.ssidAt) > ssidTTL {
 		s.ssid, s.ssidAt = sysinfo.CurrentSSID(), now
 	}
@@ -201,4 +205,25 @@ func stampOf(paths ...string) string {
 		}
 	}
 	return b.String()
+}
+
+// refreshFileBoosts tells the file index which files the user opens: the
+// ones picked through nzlauncher, by frecency, and the desktop's recent
+// files, by how recent. Rebuilt only when either source changed.
+func (s *state) refreshFileBoosts(now time.Time) {
+	stamp := fmt.Sprint(s.eventsOffset, stampOf(providers.RecentFilesPath()))
+	if stamp == s.boostStamp {
+		return
+	}
+	s.boostStamp = stamp
+	points := map[string]int{}
+	for i, path := range providers.RecentPaths(20) {
+		points[path] = max(15-i/2, 5)
+	}
+	for id, st := range s.stats {
+		if path, ok := strings.CutPrefix(id, "file:"); ok {
+			points[path] = max(points[path], min(int(learn.Score(st, now.Unix()))+5, 30))
+		}
+	}
+	files.SetBoosts(points)
 }
