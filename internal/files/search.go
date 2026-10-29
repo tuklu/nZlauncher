@@ -39,7 +39,7 @@ type match struct {
 	score  int32
 	mtime  int64
 	depth  int32 // length of the directory path, shallower ranks first
-	hidden bool
+	buried bool
 }
 
 // Search answers from the index; ok is false when it is not built yet.
@@ -291,16 +291,16 @@ func (c *collector) consider(i int) {
 			return
 		}
 	}
-	c.add(match{entry: int32(i), score: int32(score), mtime: e.ModTime, depth: int32(len(ix.dirs[e.dir])), hidden: ix.hidden[e.dir]})
+	c.add(match{entry: int32(i), score: int32(score), mtime: e.ModTime, depth: int32(len(ix.dirs[e.dir])), buried: ix.buried[e.dir]})
 }
 
-// best match first; among equals the visible, the newer, the shallower file
+// best match first; among equals the user's own, the newer, the shallower file
 func better(a, b match) bool {
 	if a.score != b.score {
 		return a.score > b.score
 	}
-	if a.hidden != b.hidden {
-		return b.hidden
+	if a.buried != b.buried {
+		return b.buried
 	}
 	if a.mtime != b.mtime {
 		return a.mtime > b.mtime

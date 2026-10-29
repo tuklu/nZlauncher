@@ -22,7 +22,9 @@ anything else      rank(catalog + apps + windows)                + fallbacks
 
 Sentences go through `internal/intent` first. It splits the query into
 words, maps synonyms to one word (`disable` to `off`, `louder` to `volume
-up`), fixes one typo in a known word of five letters or more, and pulls
+up`), fixes typos in known words (a weighted edit distance where a
+neighbouring key counts half, one edit allowed from 5 letters, two from
+8), and pulls
 out values: numbers, percentages, durations, sizes, dates and periods,
 file types and folders. All of it is plain string work, no model, a few
 microseconds.
@@ -74,7 +76,7 @@ the item is dropped. For each word the best of these counts:
 | a keyword | 50 |
 | name, letters in order (`ffx` in `firefox`) | 40 |
 | keyword, letters in order | 25 |
-| one typo in the start of a word, from 5 letters (`chromuim`) | 30 |
+| a typo in the start of a word, from 5 letters (`chromuim`) | 30 |
 | start of the group name | 20 |
 
 The points are added up over all the words.

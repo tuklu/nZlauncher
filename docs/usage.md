@@ -47,8 +47,8 @@ it's padded out with defaults.
 
 Typing ranks the catalog, installed apps and open windows together.
 Every word you type has to match somewhere (name, keywords or group),
-so `lib cal` finds LibreOffice Calc. One typo is forgiven from five
-letters on, so `chromuim` still finds Chromium.
+so `lib cal` finds LibreOffice Calc. Typos are forgiven, so `chromuim`
+still finds Chromium (how much, see Sentences).
 
 Apps are also searchable by what they are, not only their name.
 Generic names, desktop keywords and categories are all indexed, so
@@ -69,7 +69,7 @@ The first word can send the query to one provider:
 | `wifi`, `net` | networks in range with signal, the radio toggle; known and open ones connect directly, a new secured one opens a terminal that asks for the passphrase. Works with iwd and NetworkManager |
 | `bt`, `bluetooth` | paired devices and their connection state, power toggle |
 | `audio`, `output` | output devices, current one marked |
-| `vol 40`, `vol +10`, `volume` | set volume directly or by a step, presets, mute |
+| `vol 40`, `vol +10`, `volume` | set volume directly or by a step, presets, mute and unmute |
 | `bright 60`, `bright -10`, `brightness` | backlight directly or by a step, presets |
 | `ws 3`, `ws move 3` | jump to a workspace, or move the active window there |
 | `monitor`, `display` | hyprmoncfg profiles and auto-detect |
@@ -119,13 +119,18 @@ A fixed grammar, no AI involved, so the same words always do the same
 thing in well under a millisecond. Word order doesn't matter, filler
 words like `the`, `to`, `my` and `please` are dropped, common synonyms
 mean the same (`disable` is `off`, `launch` is `open`, `louder` is
-`volume up`), and a typo in a word from five letters on is fixed
-(`bluetoth`, `yesterdy`).
+`volume up`), and typos in known words are fixed (`bluetoth`,
+`brigthness`, `yesterdy`, `celcius`).
+
+Typos are measured on a keyboard: a slip onto a neighbouring key
+counts half an edit, a swap of two letters one. Words of 5 to 7 letters
+may carry one edit, from 8 letters two, shorter words none (too many real
+words sit one letter from `wifi` or `file`).
 
 | Verb | Example |
 |---|---|
 | `set`, `change`, `make` | `set volume to 40%`, `set wallpaper to beach`, `set brightness 60` |
-| volume, brightness | `volume up`, `volume down 10`, `brightness 40 percent`, `louder`, `dimmer`, `mute` |
+| volume, brightness | `volume up`, `volume down 10`, `brightness 40 percent`, `louder`, `dimmer`, `mute`, `unmute` |
 | `open`, `launch`, `start` | `open thunderbird`, `open github.com` |
 | on and off | `wifi off`, `turn bluetooth on`, `disable bluetooth`, `enable nightlight` |
 | `connect`, `disconnect` | `connect mx master`, `disconnect home-5g` |
@@ -150,14 +155,17 @@ What it understands:
 | Kind | Words |
 |---|---|
 | type | `pdf`, `docs`, `images`/`photos`/`pictures`, `screenshots` (also only in ~/Pictures/Screenshots), `videos`, `music`/`songs`/`audio`, `spreadsheets`, `slides`, `archives`, `ebooks`, `code`, `configs`, `fonts`, or an extension: `pngs`, `.go`, `go files` |
-| when | `today`, `yesterday`, `this week`, `last month`, `past 3 days`, `2 weeks ago`, `monday`, `october`, `2026-10-01`, `in 2025`, `since ...`, `before ...`, `older than 1 year`, `newer than 3 days`, `recent` |
+| when | `today`, `yesterday`, `this week`, `last month`, `last year`, `past week`, `past 3 days`, `september 2025`, `2 weeks ago`, `monday`, `october`, `2026-10-01`, `in 2025`, `since ...`, `before ...`, `older than 1 year`, `newer than 3 days`, `recent` |
 | size | `bigger than 5mb`, `over 1gb`, `> 200kb`, `under 1mb`, `big` (100 MB+), `huge` (1 GB+), `small` (under 1 MB) |
 | where | `in downloads`, `on desktop`, `in documents`, `in <any folder in home>`, `in ~/some/path` |
 
 Every other word has to appear in the file name. Results come newest
-first, with files in hidden folders after visible ones. "Last week"
-reaches back to the start of the previous week, so it covers both
-readings of it.
+first, with your own files before those in hidden folders and in build
+or vendor trees (`build`, `vendor`, `third_party`, `dist`). "Last
+week", "last month" and "last year" are the calendar period before this
+one; "past week" and "past 3 days" count back from now. A search that
+finds nothing says what it looked for, so you can tell a typo from an
+empty month.
 
 A type word on its own only counts in the plural: `screenshot` still
 takes a screenshot, `screenshots` lists them. An app whose name starts
@@ -171,8 +179,8 @@ the value.
 
 | Kind | Examples |
 |---|---|
-| units | `5 km to miles`, `72f in c`, `6 ft in cm`, `how many cm in 6 ft`, `1.5 gb to mib`, `2 cups to ml`, `100 kmh to mph` |
-| currency | `100 usd to inr`, `$100 in inr`, `50 euros to usd`, `100 usd inr` |
+| units | `5 km to miles`, `72f in c`, `44 degrees celsius in fahrenheit`, `6 ft in cm`, `how many cm in 6 ft`, `1.5 gb to mib`, `2 cups to ml`, `100 kmh to mph` |
+| currency | `100 usd to inr`, `$100 in inr`, `100$ in inr`, `100 dollars in rupees`, `50 euros to usd`, `100 usd inr` |
 | time | `time in tokyo`, `tokyo time`, `time in japan`, `3pm in london`, `3pm london to new york`, `15:00 utc in ist` |
 | dates | `days until christmas`, `days since 2026-01-01`, `in 30 days`, `10 days ago`, `today + 2 weeks`, `what day is 2026-12-25`, `week number`, a unix timestamp |
 

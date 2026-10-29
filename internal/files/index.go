@@ -44,8 +44,9 @@ type index struct {
 	postings []uint32
 	// extension -> entries with it, so "pdfs" with no name is a lookup
 	byExt map[string][]uint32
-	// a directory under a dot folder ranks below visible ones
-	hidden []bool
+	// a directory under a dot folder or inside a build or vendor tree
+	// ranks below the user's own files
+	buried []bool
 	// the walk is depth first, so a folder's whole subtree is one run of
 	// entries; lastEntry[d] is where the run of dir d's files ends
 	firstEntry, lastEntry []uint32
@@ -143,7 +144,7 @@ func build(c Config) *index {
 				idx = int32(len(ix.dirs))
 				dirOf[dir] = idx
 				ix.dirs = append(ix.dirs, dir)
-				ix.hidden = append(ix.hidden, strings.Contains(strings.TrimPrefix(dir, root), "/."))
+				ix.buried = append(ix.buried, isBuried(strings.TrimPrefix(dir, root)))
 				ix.firstEntry = append(ix.firstEntry, uint32(len(ix.entries)))
 				ix.lastEntry = append(ix.lastEntry, 0)
 			}
@@ -260,6 +261,24 @@ func DefaultConfig() Config {
 		},
 		Watch: watch,
 	}
+}
+
+// buildTrees are folders full of generated or vendored files: a pdf in a
+// vcpkg buildtree is rarely the one wanted.
+var buildTrees = map[string]bool{
+	"build": true, "builds": true, "buildtrees": true, "vendor": true, "third_party": true,
+	"thirdparty": true, "dist": true, "deps": true, "site-packages": true, "vcpkg": true,
+	"_deps": true, "obj": true,
+}
+
+// isBuried: a dot folder or a build tree anywhere in rel.
+func isBuried(rel string) bool {
+	for part := range strings.SplitSeq(rel, "/") {
+		if strings.HasPrefix(part, ".") || buildTrees[strings.ToLower(part)] || strings.HasPrefix(strings.ToLower(part), "cmake-build") {
+			return true
+		}
+	}
+	return false
 }
 
 func trigram(s string) uint32 {

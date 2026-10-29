@@ -82,6 +82,7 @@ func TestFolderSpanExtListsHiddenLast(t *testing.T) {
 	mk("a/zz.txt", time.Hour)
 	mk("b/three.png", time.Minute)
 	mk(".cache-ish/newest.png", time.Second)
+	mk("proj/build/gen.png", 2*time.Second)
 	current.Store(build(Config{Roots: []string{root}}))
 
 	names := func(f Filter) []string {
@@ -95,8 +96,8 @@ func TestFolderSpanExtListsHiddenLast(t *testing.T) {
 	if got := names(Filter{Exts: []string{"png"}, InDirs: []string{filepath.Join(root, "a")}}); !slices.Equal(got, []string{"one.png", "two.png"}) {
 		t.Fatalf("folder span: %v", got)
 	}
-	// newest first, but the dot folder after every visible file
-	if got := names(Filter{Exts: []string{"png"}}); !slices.Equal(got, []string{"three.png", "one.png", "two.png", "newest.png"}) {
+	// newest first, but dot folders and build trees after the user's files
+	if got := names(Filter{Exts: []string{"png"}}); !slices.Equal(got, []string{"three.png", "one.png", "two.png", "newest.png", "gen.png"}) {
 		t.Fatalf("ext list order: %v", got)
 	}
 }

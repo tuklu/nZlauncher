@@ -42,6 +42,41 @@ func FilterFiles(f files.Filter) []action.Action {
 	return FileActions(fdSearch(f))
 }
 
+// NoFiles says a file search was understood and came back empty, with what
+// it looked for: "pdf · Sep 2025".
+func NoFiles(f files.Filter) action.Action {
+	var parts []string
+	if len(f.Terms) > 0 {
+		parts = append(parts, "\""+strings.Join(f.Terms, " ")+"\"")
+	}
+	if len(f.Exts) > 0 {
+		exts := f.Exts
+		if len(exts) > 3 {
+			exts = append(exts[:3:3], "...")
+		}
+		parts = append(parts, strings.Join(exts, " "))
+	}
+	switch {
+	case !f.After.IsZero() && !f.Before.IsZero():
+		parts = append(parts, f.After.Format("2 Jan 2006")+" to "+f.Before.Add(-time.Second).Format("2 Jan 2006"))
+	case !f.After.IsZero():
+		parts = append(parts, "since "+f.After.Format("2 Jan 2006"))
+	case !f.Before.IsZero():
+		parts = append(parts, "before "+f.Before.Format("2 Jan 2006"))
+	}
+	if f.MinSize > 0 {
+		parts = append(parts, "over "+humanSize(f.MinSize))
+	}
+	if f.MaxSize > 0 {
+		parts = append(parts, "under "+humanSize(f.MaxSize))
+	}
+	for _, d := range f.InDirs {
+		parts = append(parts, "in "+tilde(d))
+	}
+	return action.Action{ID: "file:none", Name: "No files found", Icon: "󰈔", Group: "file",
+		Hint: strings.Join(parts, " · "), Cmd: "true"}
+}
+
 func fdSearch(f files.Filter) []files.Hit {
 	args := []string{"--type", "f", "--hidden", "--ignore-case", "--max-results", "200"}
 	for _, ex := range files.DefaultConfig().Exclude {

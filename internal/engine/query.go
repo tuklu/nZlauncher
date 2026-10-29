@@ -61,7 +61,11 @@ func QueryFor(raw, focusedClass string) ([]action.Action, error) {
 			// an app called like the query still comes first: "docs" may be one
 			pool := append(actions, cache.windowList()...)
 			ranked = append(ranked, namePrefixed(rank(pool, stats, ctx, q), q)...)
-			ranked = append(ranked, providers.FilterFiles(fq.Filter)...)
+			found := providers.FilterFiles(fq.Filter)
+			if len(found) == 0 {
+				found = []action.Action{providers.NoFiles(fq.Filter)}
+			}
+			ranked = append(ranked, found...)
 			ranked = append(ranked, fallbacks(raw, ctx.settings)...)
 		} else if nl := nlIntent(actions, stats, ctx, q); len(nl) > 0 {
 			ranked = append(append(ranked, nl...), fallbacks(raw, ctx.settings)...)
