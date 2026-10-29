@@ -136,12 +136,27 @@ func joinPhrases(typed []string) []string {
 // Words splits q into tokens with phrases, synonyms and typos resolved.
 func Words(q string) []Word {
 	var out []Word
-	for _, typed := range joinPhrases(strings.Fields(q)) {
+	var tokens []string
+	for _, t := range strings.Fields(q) {
+		// "5mb?", "pdf," "today's": the mark is not part of the word
+		if t = strings.TrimRight(t, ",?!;:"); len(t) > 1 {
+			t = strings.TrimSuffix(t, ".")
+		}
+		if t != "" {
+			tokens = append(tokens, t)
+		}
+	}
+	for _, typed := range joinPhrases(tokens) {
 		if canon, raw, ok := strings.Cut(strings.TrimPrefix(typed, "\x00"), "\x00"); ok && strings.HasPrefix(typed, "\x00") {
 			out = append(out, Word{Raw: raw, Canon: canon})
 			continue
 		}
 		tok := strings.ToLower(typed)
+		if s, ok := strings.CutSuffix(tok, "'s"); ok {
+			tok = s
+		} else if s, ok := strings.CutSuffix(tok, "’s"); ok {
+			tok = s
+		}
 		canon := tok
 		if !vocabulary[tok] {
 			canon = correct(tok)

@@ -26,13 +26,16 @@ const (
 	year  = 365 * day
 )
 
-// Number reads "5", "2.5", "a", "an", "half".
+var numberWords = map[string]float64{
+	"a": 1, "an": 1, "one": 1, "half": 0.5, "two": 2, "three": 3, "four": 4, "five": 5,
+	"six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+	"fifteen": 15, "twenty": 20, "thirty": 30, "couple": 2, "few": 3, "several": 3,
+}
+
+// Number reads "5", "2.5", "a", "two", "a couple", "a few".
 func Number(s string) (float64, bool) {
-	switch s {
-	case "a", "an", "one":
-		return 1, true
-	case "half":
-		return 0.5, true
+	if n, ok := numberWords[s]; ok {
+		return n, true
 	}
 	n, err := strconv.ParseFloat(s, 64)
 	return n, err == nil && n >= 0
@@ -65,11 +68,20 @@ func Duration(ws []Word, i int) (time.Duration, int) {
 			return unit / 2, 3
 		}
 	}
-	if i+1 < len(ws) {
-		if n, ok := Number(ws[i].Canon); ok {
-			if unit, ok := durationUnits[ws[i+1].Canon]; ok {
-				return time.Duration(n * float64(unit)), 2
-			}
+	// "2 weeks", "two weeks", "a couple of weeks", "a few days"
+	j := i
+	if c := ws[j].Canon; (c == "a" || c == "an") && j+1 < len(ws) {
+		if next := ws[j+1].Canon; next == "couple" || next == "few" {
+			j++
+		}
+	}
+	if n, ok := Number(ws[j].Canon); ok && j+1 < len(ws) {
+		k := j + 1
+		if ws[k].Canon == "of" && k+1 < len(ws) {
+			k++
+		}
+		if unit, ok := durationUnits[ws[k].Canon]; ok {
+			return time.Duration(n * float64(unit)), k - i + 1
 		}
 	}
 	return 0, 0
@@ -103,6 +115,18 @@ var sizeUnits = map[string]int64{
 	"mb": 1 << 20, "mib": 1 << 20, "meg": 1 << 20, "megs": 1 << 20,
 	"g": 1 << 30, "gb": 1 << 30, "gib": 1 << 30, "gig": 1 << 30, "gigs": 1 << 30,
 	"tb": 1 << 40, "tib": 1 << 40,
+	"kilobyte": 1 << 10, "kilobytes": 1 << 10, "megabyte": 1 << 20, "megabytes": 1 << 20,
+	"gigabyte": 1 << 30, "gigabytes": 1 << 30, "terabyte": 1 << 40, "terabytes": 1 << 40,
+}
+
+// maxSize keeps "99999999999gb" from wrapping into a negative size.
+const maxSize = 1 << 62
+
+func bytesOf(n float64, unit int64) int64 {
+	if v := n * float64(unit); v < maxSize {
+		return int64(v)
+	}
+	return maxSize
 }
 
 // Size reads "5mb", "5 mb", "1.5gb". loose also takes "5m" as megabytes,
@@ -120,13 +144,13 @@ func Size(ws []Word, i int, loose bool) (int64, int) {
 	}
 	if n, rest, ok := splitNumber(ws[i].Canon); ok && rest != "" {
 		if unit, ok := unitOf(rest); ok {
-			return int64(n * float64(unit)), 1
+			return bytesOf(n, unit), 1
 		}
 		return 0, 0
 	}
 	if n, err := strconv.ParseFloat(ws[i].Canon, 64); err == nil && i+1 < len(ws) {
 		if unit, ok := unitOf(ws[i+1].Canon); ok {
-			return int64(n * float64(unit)), 2
+			return bytesOf(n, unit), 2
 		}
 	}
 	return 0, 0
@@ -205,6 +229,24 @@ func When(ws []Word, i int, now time.Time) (Span, int) {
 			if d, n := Duration(ws, i+1); n > 0 {
 				return Span{From: now.Add(-d)}, 1 + n
 			}
+		}
+		// "last friday" on a Friday is a week ago, not today
+		if wd, ok := weekdayOf(next); ok && w == "last" {
+			back := (int(now.Weekday()) - int(wd) + 7) % 7
+			if back == 0 {
+				back = 7
+			}
+			d := today.AddDate(0, 0, -back)
+			return Span{d, d.AddDate(0, 0, 1)}, 2
+		}
+		// "last october" in October is the one a year ago
+		if m, ok := monthOf(next); ok && w == "last" {
+			y := now.Year()
+			if m >= now.Month() {
+				y--
+			}
+			from := time.Date(y, m, 1, 0, 0, 0, 0, now.Location())
+			return Span{from, from.AddDate(0, 1, 0)}, 2
 		}
 		// "past week", "past hour": one rolling unit
 		if unit, ok := durationUnits[next]; ok && w == "past" {
@@ -320,7 +362,7 @@ func dayOf(s string) (int, bool) {
 // Year reads "2025" as that calendar year, for after "in", "from", "since".
 func Year(w string, now time.Time) (Span, bool) {
 	n, err := strconv.Atoi(w)
-	if err != nil || len(w) != 4 || n < 1970 || n > now.Year() {
+	if err != nil || len(w) != 4 || n < 1970 || n > now.Year()+10 {
 		return Span{}, false
 	}
 	from := time.Date(n, 1, 1, 0, 0, 0, 0, now.Location())

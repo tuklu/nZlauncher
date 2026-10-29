@@ -75,7 +75,14 @@ var fileFiller = map[string]bool{
 	"at": true, "least": true, "most": true, "or": true, "ago": true, "modified": true,
 	"changed": true, "made": true, "created": true, "edited": true, "saved": true, "which": true,
 	"under": true, "inside": true, "within": true, "this": true, "last": true, "past": true, ">": true, "<": true,
+	"folder": true, "folders": true, "directory": true, "dir": true, "next": true, "but": true, "no": true, "not": true,
 }
+
+// articles stand between a preposition and the folder it names.
+var articles = map[string]bool{"the": true, "my": true, "a": true, "an": true, "our": true, "your": true}
+
+// yearDash splits "2024-2025" for the range reader.
+var yearDash = regexp.MustCompile(`\b((?:19|20)\d\d)-((?:19|20)\d\d)\b`)
 
 // FileQuery is a sentence read as a file search.
 type FileQuery struct {
@@ -88,6 +95,7 @@ type FileQuery struct {
 // Files reads q as a file search.
 func Files(q string, now time.Time) FileQuery {
 	q = sizeDash.ReplaceAllString(q, "$1 - $2")
+	q = yearDash.ReplaceAllString(q, "$1 - $2")
 	ws := Words(strings.NewReplacer(">", " > ", "<", " < ").Replace(q))
 	home := os.Getenv("HOME")
 	var f files.Filter
@@ -122,14 +130,19 @@ func Files(q string, now time.Time) FileQuery {
 		hasTime = true
 	}
 
-	timeMode := "" // "since" or "before": what the next date means
-	sizeCmp := ""  // "min" or "max": what the next size means
-	ageCmp := ""   // "older" or "newer": what the next duration means
+	timeMode := ""     // "since" or "before": what the next date means
+	sizeCmp := ""      // "min" or "max": what the next size means
+	ageCmp := ""       // "older" or "newer": what the next duration means
+	sizeAsMin := false // the last size read became a minimum by default, "or less" can flip it
 	for i := 0; i < len(ws); i++ {
 		w := ws[i].Canon
+		// the word before, past "the" and "my": "in my projects"
 		prev := ""
-		if i > 0 {
-			prev = ws[i-1].Canon
+		for j := i - 1; j >= 0; j-- {
+			if c := ws[j].Canon; !articles[c] {
+				prev = c
+				break
+			}
 		}
 
 		if kind, lo, hi, span, n := rangeAt(ws, i, now); n > 0 {
@@ -149,9 +162,46 @@ func Files(q string, now time.Time) FileQuery {
 		case "before", "until":
 			timeMode = "before"
 			continue
-		case "bigger", "larger", "over", "above", "greater", "more", ">":
+		case "bigger", "larger", "over", "above", "greater", ">", "min", "minimum":
 			sizeCmp = "min"
 			continue
+		case "more":
+			// "no more than 5mb" is a ceiling
+			if prev == "no" || prev == "not" {
+				sizeCmp = "max"
+			} else {
+				sizeCmp = "min"
+			}
+			continue
+		case "most", "max", "maximum":
+			// "at most 5mb"
+			sizeCmp = "max"
+			continue
+		case "least":
+			sizeCmp = "min"
+			continue
+		case "up":
+			// "up to 5mb"
+			if i+1 < len(ws) && ws[i+1].Canon == "to" {
+				sizeCmp = "max"
+				i++
+				continue
+			}
+		case "or":
+			// "5mb or less" turns the size just read into a ceiling
+			if i+1 < len(ws) {
+				switch ws[i+1].Canon {
+				case "less", "smaller", "under", "lower", "below", "down":
+					if sizeAsMin {
+						f.MinSize, f.MaxSize = 0, f.MinSize
+					}
+					i++
+					continue
+				case "more", "bigger", "larger", "greater", "over", "above":
+					i++
+					continue
+				}
+			}
 		case "smaller", "under", "below", "less", "<":
 			// "under" is also a place: "under projects"
 			if w == "under" && i+1 < len(ws) {
@@ -204,7 +254,7 @@ func Files(q string, now time.Time) FileQuery {
 			} else {
 				f.MinSize = size
 			}
-			hasSize, sizeCmp = true, ""
+			hasSize, sizeAsMin, sizeCmp = true, sizeCmp == "", ""
 			i += n - 1
 			continue
 		}
@@ -367,6 +417,11 @@ func rangeAt(ws []Word, i int, now time.Time) (kind string, lo, hi int64, span S
 		}
 		from.From = time.Date(y, m, 1, 0, 0, 0, 0, now.Location())
 	}
+	// each end picked its last occurrence; "from september to november" in
+	// October means last year's September, since November has not come
+	if from.From.After(to.From) {
+		from.From = from.From.AddDate(-1, 0, 0)
+	}
 	// an open right end ("to today") runs up to now
 	return "date", 0, 0, Span{from.From, to.To}, k + rn - i
 }
@@ -378,6 +433,9 @@ func dateAt(ws []Word, i int, now time.Time) (Span, int) {
 	}
 	if span, n := When(ws, i, now); n > 0 {
 		return span, n
+	}
+	if ws[i].Canon == "now" {
+		return Span{From: now}, 1 // an open end: up to now
 	}
 	if span, ok := Year(ws[i].Canon, now); ok {
 		return span, 1
