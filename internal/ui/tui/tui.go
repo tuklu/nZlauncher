@@ -26,6 +26,7 @@ type tuiModel struct {
 	height  int
 	st      tuiStyles
 	picked  string // command to run once the window is gone
+	preview preview
 }
 
 func Run(initial string) error {
@@ -144,6 +145,17 @@ func (m *tuiModel) View() string {
 		end = len(m.actions)
 	}
 
+	// beside the list: the selected result's file, on a wide enough terminal
+	full := w
+	showPreview := m.width >= previewMinWidth && m.cursor < len(m.actions) && m.actions[m.cursor].Preview != ""
+	if showPreview {
+		if path := m.actions[m.cursor].Preview; m.preview.path != path {
+			m.preview = loadPreview(path)
+		}
+		w = w * 55 / 100
+	}
+	var list strings.Builder
+
 	for i := m.offset; i < end; i++ {
 		a := m.actions[i]
 
@@ -172,12 +184,19 @@ func (m *tuiModel) View() string {
 		row := " " + icon + "  " + name + strings.Repeat(" ", pad) + badge + " "
 
 		if i == m.cursor {
-			b.WriteString(" " + m.st.marker.Render("▌") + m.st.selRow.Render(row) + "\n")
+			list.WriteString(" " + m.st.marker.Render("▌") + m.st.selRow.Render(row) + "\n")
 		} else {
 			styled := " " + icon + "  " + m.st.text.Render(name) +
 				strings.Repeat(" ", pad) + m.st.badge.Render(badge) + " "
-			b.WriteString("  " + styled + "\n")
+			list.WriteString("  " + styled + "\n")
 		}
+	}
+	if showPreview {
+		pane := m.preview.render(m.st, full-w-1, rows)
+		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, strings.TrimSuffix(list.String(), "\n"), " ", pane) + "\n")
+		w = full
+	} else {
+		b.WriteString(list.String())
 	}
 
 	// footer
