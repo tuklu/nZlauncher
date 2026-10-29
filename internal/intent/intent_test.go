@@ -101,6 +101,8 @@ func TestFiles(t *testing.T) {
 		{q: "find invoice", sure: false, terms: []string{"invoice"}},
 		{q: "open music", sure: false, ext: "mp3"},
 		{q: "files", sure: false},
+		{q: "nzlauncher config", sure: false, terms: []string{"nzlauncher", "config"}},
+		{q: "configs in projects", sure: true, ext: "toml", dir: "Projects"},
 	}
 	for _, c := range cases {
 		fq := Files(c.q, now)

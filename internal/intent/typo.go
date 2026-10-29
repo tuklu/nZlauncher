@@ -134,6 +134,11 @@ func (v *Vocab) Correct(typed string) (string, bool) {
 	best, bestDist, tie := "", math.Inf(1), false
 	try := func(words []string) {
 		for _, w := range words {
+			// a word and its plural are one letter apart but not a typo:
+			// "config" is not "configs"
+			if w == typed+"s" || typed == w+"s" {
+				continue
+			}
 			d, ok := closeness(typed, w)
 			switch {
 			case !ok:

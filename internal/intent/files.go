@@ -25,29 +25,32 @@ var (
 	fontExts    = []string{"ttf", "otf", "woff", "woff2"}
 )
 
-// kinds names a sort of file by the words people use for it.
+// kinds names a sort of file by the words people use for it. Singular
+// words that are as often part of a name ("config", "code", "book", "doc")
+// only count in the plural; "nzlauncher config" looks for a name.
 var kinds = map[string][]string{
 	"pdf": {"pdf"}, "pdfs": {"pdf"},
-	"doc": docExts, "docs": docExts, "document": docExts, "documents": docExts,
+	"docs": docExts, "documents": docExts,
 	"image": imageExts, "images": imageExts, "picture": imageExts, "pictures": imageExts,
 	"pic": imageExts, "pics": imageExts, "photo": imageExts, "photos": imageExts,
 	"screenshot": imageExts, "screenshots": imageExts,
 	"video": videoExts, "videos": videoExts, "movie": videoExts, "movies": videoExts,
-	"recording": videoExts, "recordings": videoExts,
-	"audio": audioExts, "song": audioExts, "songs": audioExts, "music": audioExts, "track": audioExts, "tracks": audioExts,
-	"spreadsheet": sheetExts, "spreadsheets": sheetExts, "sheet": sheetExts, "sheets": sheetExts,
-	"presentation": slideExts, "presentations": slideExts, "slides": slideExts, "deck": slideExts, "decks": slideExts,
+	"recordings": videoExts,
+	"audio":      audioExts, "song": audioExts, "songs": audioExts, "music": audioExts, "tracks": audioExts,
+	"spreadsheet": sheetExts, "spreadsheets": sheetExts, "sheets": sheetExts,
+	"presentation": slideExts, "presentations": slideExts, "slides": slideExts, "decks": slideExts,
 	"archive": archiveExts, "archives": archiveExts, "zips": archiveExts,
-	"ebook": bookExts, "ebooks": bookExts, "book": bookExts, "books": bookExts,
-	"code": codeExts, "source": codeExts,
-	"config": configExts, "configs": configExts,
-	"font": fontExts, "fonts": fontExts,
+	"ebook": bookExts, "ebooks": bookExts, "books": bookExts,
+
+	"configs": configExts,
+	"fonts":   fontExts,
 }
 
 // knownExts are extensions a bare word can name ("png", "go files", "mp4s").
 var knownExts = func() map[string]bool {
 	m := map[string]bool{}
-	for _, exts := range kinds {
+	for _, exts := range [][]string{imageExts, videoExts, audioExts, docExts, sheetExts, slideExts,
+		archiveExts, bookExts, codeExts, configExts, fontExts} {
 		for _, e := range exts {
 			m[e] = true
 		}
