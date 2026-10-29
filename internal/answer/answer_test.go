@@ -24,20 +24,26 @@ func answer(t *testing.T, q string) Answer {
 
 func TestUnits(t *testing.T) {
 	cases := map[string]string{
-		"5 km to miles":         "3.10686 mi",
-		"5km in mi":             "3.10686 mi",
-		"72f to c":              "22.2222 °C",
-		"100 c in f":            "212 °F",
-		"-40 c to f":            "-40 °F",
-		"1.5 gb to mib":         "1430.51 MiB",
-		"6 ft in cm":            "182.88 cm",
-		"how many cm in 6 ft":   "182.88 cm",
-		"convert 10 lb to kg":   "4.53592 kg",
-		"2 cups to ml":          "473.176 ml",
-		"100 kmh to mph":        "62.1371 mph",
-		"1 acre in m2":          "4046.86 m²",
-		"90 minutes in hours":   "1.5 h",
-		"1,000,000 bytes to mb": "1 MB",
+		"5 km to miles":                   "3.10686 mi",
+		"5km in mi":                       "3.10686 mi",
+		"72f to c":                        "22.2222 °C",
+		"100 c in f":                      "212 °F",
+		"-40 c to f":                      "-40 °F",
+		"1.5 gb to mib":                   "1430.51 MiB",
+		"6 ft in cm":                      "182.88 cm",
+		"how many cm in 6 ft":             "182.88 cm",
+		"convert 10 lb to kg":             "4.53592 kg",
+		"2 cups to ml":                    "473.176 ml",
+		"100 kmh to mph":                  "62.1371 mph",
+		"1 acre in m2":                    "4046.86 m²",
+		"90 minutes in hours":             "1.5 h",
+		"1,000,000 bytes to mb":           "1 MB",
+		"44 degree celcius in fahrenheit": "111.2 °F",
+		"44 degrees in fahrenheit":        "111.2 °F",
+		"44 degrees c to f":               "111.2 °F",
+		"100 f in degrees celsius":        "37.7778 °C",
+		"5 kilometres to miles":           "3.10686 mi",
+		"5 kilometers to mlies":           "3.10686 mi",
 	}
 	for q, want := range cases {
 		if got := answer(t, q).Name; got != want {
@@ -59,13 +65,18 @@ func TestCurrency(t *testing.T) {
 		[]byte(`{"date":"2026-10-29","rates":{"USD":1.113,"INR":106.04,"GBP":0.8358}}`), 0o600)
 
 	cases := map[string]string{
-		"100 usd to inr":   "9527.40 INR",
-		"$100 in inr":      "9527.40 INR",
-		"100 usd inr":      "9527.40 INR",
-		"50 euros to usd":  "55.65 USD",
-		"10 pounds to usd": "13.32 USD", // a currency, because usd is not a weight
-		"10 pounds to kg":  "4.53592 kg",
-		"1 inr to usd":     "0.010496 USD",
+		"100 usd to inr":        "9527.40 INR",
+		"$100 in inr":           "9527.40 INR",
+		"100 usd inr":           "9527.40 INR",
+		"100$ in inr":           "9527.40 INR",
+		"$ 100 in inr":          "9527.40 INR",
+		"100 $ to inr":          "9527.40 INR",
+		"100 dollars in rupees": "9527.40 INR",
+		"100 dolars in rupes":   "9527.40 INR",
+		"50 euros to usd":       "55.65 USD",
+		"10 pounds to usd":      "13.32 USD", // a currency, because usd is not a weight
+		"10 pounds to kg":       "4.53592 kg",
+		"1 inr to usd":          "0.010496 USD",
 	}
 	for q, want := range cases {
 		if got := answer(t, q).Name; got != want {

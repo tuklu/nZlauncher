@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/tuklu/nZlauncher/internal/intent"
 )
 
 // Answer is one computed result. Value is what gets copied.
@@ -61,7 +63,7 @@ func conversion(q string) (n float64, from, to string, ok bool) {
 	}
 	// "how many cm in 5 ft"
 	if len(words) >= 5 && words[0] == "how" && words[1] == "many" {
-		target := words[2]
+		target := unitWord(words[2])
 		if n, unit, used := amount(words[4:]); used > 0 && words[3] == "in" && 4+used == len(words) {
 			return n, unit, target, true
 		}
@@ -72,12 +74,16 @@ func conversion(q string) (n float64, from, to string, ok bool) {
 		return 0, "", "", false
 	}
 	rest := words[used:]
+	// "in degrees fahrenheit", "to ° f"
+	if len(rest) == 3 && conversionWords[rest[0]] && degreeWords[rest[1]] {
+		rest = []string{rest[0], rest[2]}
+	}
 	if len(rest) == 2 && conversionWords[rest[0]] {
-		return n, from, rest[1], true
+		return n, from, unitWord(rest[1]), true
 	}
 	// "100 usd inr": only for currencies, units need the word
 	if len(rest) == 1 && len(rest[0]) == 3 && len(from) == 3 {
-		return n, from, rest[0], true
+		return n, from, unitWord(rest[0]), true
 	}
 	return 0, "", "", false
 }
@@ -85,12 +91,19 @@ func conversion(q string) (n float64, from, to string, ok bool) {
 var currencySigns = map[string]string{"$": "usd", "€": "eur", "£": "gbp", "¥": "jpy", "₹": "inr", "₩": "krw", "₽": "rub"}
 
 // amount reads a number and its unit from the front of words: "5 km",
-// "5km", "$100", "100usd", "72°f". used is how many words it took.
+// "5km", "$100", "100$", "$ 100", "100 $", "72°f", "44 degrees celsius".
+// used is how many words it took.
 func amount(words []string) (n float64, unit string, used int) {
 	if len(words) == 0 {
 		return 0, "", 0
 	}
 	w := words[0]
+	// a sign on its own before the number: "$ 100"
+	if code, ok := currencySigns[w]; ok && len(words) > 1 {
+		if v, err := parseNumber(words[1]); err == nil {
+			return v, code, 2
+		}
+	}
 	for sign, code := range currencySigns {
 		if rest, ok := strings.CutPrefix(w, sign); ok {
 			if v, err := parseNumber(rest); err == nil {
@@ -107,18 +120,59 @@ func amount(words []string) (n float64, unit string, used int) {
 		return 0, "", 0
 	}
 	if k < len(w) {
-		return v, w[k:], 1
+		return v, unitWord(w[k:]), 1
 	}
-	if len(words) > 1 {
-		u := words[1]
-		// "5 fl oz"
-		if u == "fl" && len(words) > 2 && words[2] == "oz" {
-			return v, "floz", 3
+	used = 1
+	// "44 degrees celsius", "44 deg f", "44 ° c"
+	if len(words) > used && degreeWords[words[used]] {
+		used++
+		if len(words) == used || conversionWords[words[used]] {
+			return v, "c", used // "44 degrees in fahrenheit": celsius unless said
 		}
-		return v, u, 2
 	}
-	return v, "", 1
+	if len(words) > used {
+		u := words[used]
+		// "5 fl oz"
+		if u == "fl" && len(words) > used+1 && words[used+1] == "oz" {
+			return v, "floz", used + 2
+		}
+		return v, unitWord(u), used + 1
+	}
+	return v, "", used
 }
+
+var degreeWords = map[string]bool{"degree": true, "degrees": true, "deg": true, "°": true}
+
+// unitWord turns a currency sign into its code and fixes a typo in a unit
+// or currency name: "celcius", "farenheit", "kilometre".
+func unitWord(w string) string {
+	if code, ok := currencySigns[w]; ok {
+		return code
+	}
+	w = strings.TrimPrefix(w, "°")
+	if _, ok := units[w]; ok {
+		return w
+	}
+	if _, ok := currencyNames[w]; ok {
+		return w
+	}
+	if fix, ok := unitVocabulary.Correct(w); ok {
+		return fix
+	}
+	return w
+}
+
+// unitVocabulary is every unit and currency name a typo can be fixed to.
+var unitVocabulary = func() *intent.Vocab {
+	v := map[string]bool{}
+	for w := range units {
+		v[w] = true
+	}
+	for w := range currencyNames {
+		v[w] = true
+	}
+	return intent.NewVocab(v)
+}()
 
 func parseNumber(s string) (float64, error) {
 	return strconv.ParseFloat(strings.ReplaceAll(s, ",", ""), 64)

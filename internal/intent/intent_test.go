@@ -39,20 +39,6 @@ func TestWordsResolveSynonymsAndTypos(t *testing.T) {
 	}
 }
 
-func TestNear(t *testing.T) {
-	for _, c := range []struct {
-		a, b string
-		near bool
-	}{
-		{"firefox", "fierfox", true}, {"firefox", "firefo", true}, {"firefox", "firefoxx", true},
-		{"firefox", "firafox", true}, {"firefox", "fiarfox", false}, {"abc", "xyz", false},
-	} {
-		if Near(c.a, c.b) != c.near {
-			t.Errorf("Near(%q, %q) = %v", c.a, c.b, !c.near)
-		}
-	}
-}
-
 func TestDuration(t *testing.T) {
 	cases := map[string]time.Duration{
 		"10m": 10 * time.Minute, "1h30m": 90 * time.Minute, "10 minutes": 10 * time.Minute,
@@ -83,7 +69,11 @@ func TestFiles(t *testing.T) {
 		maxSize int64
 		dir     string
 	}{
-		{q: "pdfs from last week", sure: true, ext: "pdf", after: date(2026, 10, 19)},
+		{q: "pdfs from last week", sure: true, ext: "pdf", after: date(2026, 10, 19), before: date(2026, 10, 26)},
+		{q: "pdf last year", sure: true, ext: "pdf", after: date(2025, 1, 1), before: date(2026, 1, 1)},
+		{q: "pdfs from september 2025", sure: true, ext: "pdf", after: date(2025, 9, 1), before: date(2025, 10, 1)},
+		{q: "pdfs from the past week", sure: true, ext: "pdf", after: now.Add(-7 * 24 * time.Hour)},
+		{q: "pdfs this month", sure: true, ext: "pdf", after: date(2026, 10, 1)},
 		{q: "screenshots today", sure: true, ext: "png", after: date(2026, 10, 29), dir: "Pictures/Screenshots"},
 		{q: "invoice docs bigger than 5mb", sure: true, terms: []string{"invoice"}, ext: "pdf", minSize: 5 << 20},
 		{q: "videos > 1gb", sure: true, ext: "mkv", minSize: 1 << 30},
@@ -125,5 +115,46 @@ func TestFiles(t *testing.T) {
 		if want := filepath.Join(home, c.dir); c.dir != "" && !slices.Contains(f.InDirs, want) {
 			t.Errorf("%q: dirs %v, want %s", c.q, f.InDirs, want)
 		}
+	}
+}
+
+func TestTypos(t *testing.T) {
+	vocab := map[string]bool{"bluetooth": true, "brightness": true, "screenshots": true, "yesterday": true,
+		"celsius": true, "fahrenheit": true, "firefox": true, "files": true, "nightlight": true}
+	cases := map[string]string{
+		"bluetoth":    "bluetooth",   // dropped letter
+		"blurtooth":   "bluetooth",   // neighbour key
+		"brigthness":  "brightness",  // swap
+		"brihgtnes":   "brightness",  // two slips in a long word
+		"scrrenshots": "screenshots", // extra letter
+		"celcius":     "celsius",     // c for s
+		"farenheit":   "fahrenheit",
+		"ifrefox":     "firefox", // first two swapped
+		"nightlihgt":  "nightlight",
+		"fire":        "", // too short to be a typo of anything
+		"xylophone":   "",
+		"filed":       "files", // one edit, five letters
+	}
+	for typed, want := range cases {
+		got, ok := NewVocab(vocab).Correct(typed)
+		if !ok {
+			got = ""
+		}
+		if got != want {
+			t.Errorf("%q: got %q, want %q", typed, got, want)
+		}
+	}
+	if d := Distance("wifi", "wifu"); d != 0.5 {
+		t.Errorf("neighbour key should cost 0.5, got %v", d)
+	}
+}
+
+func BenchmarkWords(b *testing.B) {
+	for _, q := range []string{"chromium", "pdfs from september 2025", "44 degree celcius in fahrenheit"} {
+		b.Run(q, func(b *testing.B) {
+			for b.Loop() {
+				Words(q)
+			}
+		})
 	}
 }

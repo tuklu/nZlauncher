@@ -179,7 +179,8 @@ func startOfYear(t time.Time) time.Time {
 }
 
 // When reads a moment or a period: "today", "yesterday", "this week",
-// "last month" (from the start of the previous month on), "past 3 days",
+// "last month" (the calendar month before this one), "past 3 days",
+// "past week" (rolling), "september 2025",
 // "2 weeks ago", "monday", "october", "2026-10-01", "recent" (past week).
 func When(ws []Word, i int, now time.Time) (Span, int) {
 	if i >= len(ws) {
@@ -205,22 +206,25 @@ func When(ws []Word, i int, now time.Time) (Span, int) {
 				return Span{From: now.Add(-d)}, 1 + n
 			}
 		}
+		// "past week", "past hour": one rolling unit
+		if unit, ok := durationUnits[next]; ok && w == "past" {
+			return Span{From: now.Add(-unit)}, 2
+		}
 		start := map[string]func(time.Time) time.Time{
 			"day": startOfDay, "week": startOfWeek, "month": startOfMonth, "year": startOfYear,
 		}[next]
 		if start == nil {
-			if next == "hour" && w != "this" {
+			if next == "hour" {
 				return Span{From: now.Add(-time.Hour)}, 2
 			}
 			return Span{}, 0
 		}
-		from := start(now)
-		if w != "this" {
-			// "last week" reaches back to the start of the previous week,
-			// so it covers both readings: the week before and the past seven days
-			from = start(from.Add(-time.Nanosecond))
+		this := start(now)
+		if w == "this" {
+			return Span{From: this}, 2
 		}
-		return Span{From: from}, 2
+		// "last month" is the calendar month before this one
+		return Span{start(this.Add(-time.Nanosecond)), this}, 2
 	}
 	// "3 days ago"
 	if d, n := Duration(ws, i); n > 0 && i+n < len(ws) && ws[i+n].Canon == "ago" {
@@ -236,6 +240,13 @@ func When(ws []Word, i int, now time.Time) (Span, int) {
 		return Span{d, d.AddDate(0, 0, 1)}, 1
 	}
 	if m, ok := monthOf(w); ok {
+		// "september 2025"; without a year, the last one that has begun
+		if i+1 < len(ws) {
+			if year, ok := Year(ws[i+1].Canon, now); ok {
+				from := time.Date(year.From.Year(), m, 1, 0, 0, 0, 0, now.Location())
+				return Span{from, from.AddDate(0, 1, 0)}, 2
+			}
+		}
 		y := now.Year()
 		if m > now.Month() {
 			y--

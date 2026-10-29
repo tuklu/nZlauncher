@@ -38,7 +38,7 @@ var synonyms = map[string]string{
 
 	"louder": "volume up", "quieter": "volume down", "softer": "volume down",
 	"brighter": "brightness up", "dimmer": "brightness down", "darker": "brightness down",
-	"mute": "volume mute", "unmute": "volume mute",
+	"mute": "volume mute", "unmute": "volume unmute", "silence": "volume mute",
 	"increase": "up", "raise": "up", "higher": "up",
 	"decrease": "down", "lower": "down", "reduce": "down",
 	"percent": "%",
@@ -182,53 +182,12 @@ func RawJoin(ws []Word) string {
 	return strings.Join(parts, " ")
 }
 
-// correct fixes one typo in a known word. Short words are left alone (too
-// many real words sit one edit from "wifi" or "file"), the first letter must
-// agree, and an ambiguous fix is no fix.
-func correct(tok string) string {
-	if len(tok) < 5 {
-		return tok
-	}
-	fix := ""
-	for w := range vocabulary {
-		if w[0] == tok[0] && len(w) >= 4 && Near(tok, w) {
-			if fix != "" {
-				return tok
-			}
-			fix = w
-		}
-	}
-	if fix == "" {
-		return tok
-	}
-	return fix
-}
+var vocab = NewVocab(vocabulary)
 
-// Near reports whether a and b are at most one edit apart: one letter
-// changed, added, dropped, or two neighbours swapped.
-func Near(a, b string) bool {
-	if a == b {
-		return true
+// correct fixes a typo in a known word, see Vocab.Correct.
+func correct(tok string) string {
+	if fix, ok := vocab.Correct(tok); ok {
+		return fix
 	}
-	if len(a) > len(b) {
-		a, b = b, a
-	}
-	switch len(b) - len(a) {
-	case 0:
-		i := 0
-		for i < len(a) && a[i] == b[i] {
-			i++
-		}
-		if a[i+1:] == b[i+1:] {
-			return true
-		}
-		return i+1 < len(a) && a[i] == b[i+1] && a[i+1] == b[i] && a[i+2:] == b[i+2:]
-	case 1:
-		i := 0
-		for i < len(a) && a[i] == b[i] {
-			i++
-		}
-		return a[i:] == b[i+1:]
-	}
-	return false
+	return tok
 }

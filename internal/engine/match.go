@@ -73,15 +73,17 @@ func wordPrefix(words []string, t string) bool {
 	return false
 }
 
-// typoPrefix: one slip in what was typed so far of a word, "fierf" for
-// "firefox". Only from five letters on: "fire" is one slip from "file".
+// typoPrefix: a slip in what was typed so far of a word, "fierf" for
+// "firefox", "chromuim" for "chromium". The budget grows with the length,
+// see intent.Budget; under five letters nothing counts as a typo.
 func typoPrefix(words []string, t string) bool {
-	if len(t) < 5 {
+	if intent.Budget(len(t)) == 0 {
 		return false
 	}
 	for _, w := range words {
+		// what was typed may be the start of the word, give or take a letter
 		for _, n := range []int{len(t) - 1, len(t), len(t) + 1} {
-			if n <= len(w) && intent.Near(w[:n], t) {
+			if n <= len(w) && intent.Close(t, w[:n]) {
 				return true
 			}
 		}

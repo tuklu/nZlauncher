@@ -137,8 +137,9 @@ func Volume(q string) []action.Action {
 	}
 	switch sign, n, ok := level(q); {
 	case q == "mute":
-		return []action.Action{{ID: "vol:mute", Name: "Mute Toggle", Icon: "󰝟", Group: "audio",
-			Cmd: "osd --output-volume mute-toggle"}}
+		return []action.Action{muteAction}
+	case q == "unmute":
+		return []action.Action{unmuteAction}
 	case ok && sign == "+":
 		return []action.Action{{ID: "vol:up", Name: fmt.Sprintf("Volume Up %d%%", n), Icon: "󰕾", Group: "audio",
 			Cmd: fmt.Sprintf("osd --output-volume +%d", n)}}
@@ -158,11 +159,15 @@ func Volume(q string) []action.Action {
 			Cmd: fmt.Sprintf("wpctl set-volume @DEFAULT_AUDIO_SINK@ %d%%", n),
 		})
 	}
-	return append(acts, action.Action{
-		ID: "vol:mute", Name: "Mute Toggle", Icon: "󰝟", Group: "audio",
-		Cmd: "osd --output-volume mute-toggle",
-	})
+	return append(acts, muteAction, unmuteAction)
 }
+
+var (
+	muteAction = action.Action{ID: "vol:mute", Name: "Mute", Icon: "󰝟", Group: "audio",
+		Cmd: "osd --output-volume mute"}
+	unmuteAction = action.Action{ID: "vol:unmute", Name: "Unmute", Icon: "󰕾", Group: "audio",
+		Cmd: "osd --output-volume unmute"}
+)
 
 // ws / workspace — jump or move the active window; "ws 3", "ws move 3".
 func Workspace(q string) []action.Action {

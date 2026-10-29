@@ -117,8 +117,8 @@ func levelArg(ws []intent.Word) string {
 		switch c := w.Canon; {
 		case c == "up" || c == "down":
 			sign = map[string]string{"up": "+", "down": "-"}[c]
-		case c == "mute":
-			return "mute"
+		case c == "mute" || c == "unmute":
+			return c
 		case c == "%" || c == "by" || c == "at":
 		default:
 			c = strings.TrimSuffix(c, "%")

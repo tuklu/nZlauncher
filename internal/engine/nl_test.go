@@ -10,7 +10,7 @@ import (
 func TestLevelArg(t *testing.T) {
 	cases := map[string]string{
 		"40": "40", "40%": "40", "40 percent": "40", "to 40": "40", "up": "+5", "down 10": "-10",
-		"+10": "+10", "-5": "-5", "by 20 up": "+20", "mute": "mute", "wiremix": "", "500": "",
+		"+10": "+10", "-5": "-5", "by 20 up": "+20", "mute": "mute", "unmute": "unmute", "wiremix": "", "500": "",
 	}
 	for q, want := range cases {
 		ws := intent.Content(intent.Words(q))
