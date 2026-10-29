@@ -3,6 +3,7 @@ package engine
 
 import (
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/answer"
 	"github.com/tuklu/nZlauncher/internal/config"
+	"github.com/tuklu/nZlauncher/internal/files"
 	"github.com/tuklu/nZlauncher/internal/intent"
 	"github.com/tuklu/nZlauncher/internal/learn"
 	"github.com/tuklu/nZlauncher/internal/providers"
@@ -73,7 +75,8 @@ func QueryFor(raw, focusedClass string) ([]action.Action, error) {
 			ranked = append(append(ranked, provided...), fallbacks(raw, ctx.settings)...)
 		} else {
 			pool := append(actions, cache.windowList()...)
-			ranked = append(append(ranked, rank(pool, stats, ctx, q)...), fallbacks(raw, ctx.settings)...)
+			matched := withFiles(rank(pool, stats, ctx, q), q)
+			ranked = append(append(ranked, matched...), fallbacks(raw, ctx.settings)...)
 		}
 	}
 
@@ -202,6 +205,47 @@ func answers(raw string, now time.Time) []action.Action {
 		})
 	}
 	return acts
+}
+
+// Files in a plain search: a strong file match (a name or a word in it
+// starting with what was typed, or a file the user opens) joins the
+// results without a prefix. Strong app and command matches keep the first
+// places, at most two of them, so a file shows first when nothing else
+// fits and second or third when something does.
+const (
+	filesInSearch   = 2
+	filesAfterApps  = 2
+	filesMinLetters = 3
+)
+
+func withFiles(ranked []action.Action, q string) []action.Action {
+	if !providers.On("files") || !files.Ready() {
+		return ranked
+	}
+	// every word needs three letters for the index's trigram lists: a
+	// shorter one would mean reading every name, a cost plain typing is not
+	// worth (the file prefix still does it)
+	tokens := strings.Fields(q)
+	for _, t := range tokens {
+		if len(t) < filesMinLetters {
+			return ranked
+		}
+	}
+	hits, _ := files.Search(files.Filter{Terms: tokens, Limit: 6})
+	var strong []files.Hit
+	for _, h := range hits {
+		if h.Strong && !h.Buried && len(strong) < filesInSearch {
+			strong = append(strong, h)
+		}
+	}
+	if len(strong) == 0 {
+		return ranked
+	}
+	at := 0
+	for at < len(ranked) && at < filesAfterApps && matchScore(ranked[at], tokens) >= scoreWordPrefix*len(tokens) {
+		at++
+	}
+	return slices.Concat(ranked[:at], providers.FileActions(strong), ranked[at:])
 }
 
 // "f pdfs" goes to the file provider, which reads the rest itself; with the

@@ -57,6 +57,13 @@ Generic names, desktop keywords and categories are all indexed, so
 Open windows show up next to the app, so typing `ghostty` gives you
 both "switch to it" and "open another one".
 
+Files show up too, without a prefix, when one matches strongly: its name
+or a word in it starts with what you typed, or it's a file you open
+often. At most two, and strong app matches keep the first places, so a
+file comes first when nothing else fits and second or third when an app
+does. Every word needs three letters for this, and the daemon has to be
+running.
+
 Type a group name to list it: `power`, `toggle`, `capture`, `info`, or
 `apps` for every application.
 
@@ -76,7 +83,7 @@ The first word can send the query to one provider:
 | `kill chrom` | your processes sorted by CPU, pick to kill |
 | `clip` | clipboard history, pick to copy again |
 | `emoji fire` | 1,784 emoji, pick to copy |
-| `file notes`, `f` | file search, reads the rest as a sentence (see below), recent files when empty |
+| `file notes`, `f` | file search, reads the rest as a sentence (see below), recent files when empty; nothing found as typed tries the letters in order (`f cfgtoml`) |
 | `keys vol` | every Hyprland keybind, pick to run it |
 | `wallpaper`, `wp` | images in the `wallpaper_dir` setting, pick to set |
 | `transcode` | pick a media file, then a format and resolution |
@@ -155,20 +162,29 @@ What it understands:
 | Kind | Words |
 |---|---|
 | type | `pdf`, `docs`, `images`/`photos`/`pictures`, `screenshots` (also only in ~/Pictures/Screenshots), `videos`, `music`/`songs`/`audio`, `spreadsheets`, `slides`, `archives`, `ebooks`, `code`, `configs`, `fonts`, or an extension: `pngs`, `.go`, `go files` |
-| when | `today`, `yesterday`, `this week`, `last month`, `last year`, `past week`, `past 3 days`, `september 2025`, `2 weeks ago`, `monday`, `october`, `2026-10-01`, `in 2025`, `since ...`, `before ...`, `older than 1 year`, `newer than 3 days`, `recent` |
-| size | `bigger than 5mb`, `over 1gb`, `> 200kb`, `under 1mb`, `big` (100 MB+), `huge` (1 GB+), `small` (under 1 MB) |
+| when | `today`, `yesterday`, `this week`, `last month`, `last year`, `past week`, `past 3 days`, `september 2025`, `from june to august`, `between march and may 2025`, `2024 to 2025`, `2 weeks ago`, `monday`, `october`, `2026-10-01`, `in 2025`, `since ...`, `before ...`, `older than 1 year`, `newer than 3 days`, `recent` |
+| size | `bigger than 5mb`, `over 1gb`, `> 200kb`, `under 1mb`, `between 1mb and 5mb`, `1-5gb`, `1 to 5 mb`, `big` (100 MB+), `huge` (1 GB+), `small` (under 1 MB) |
 | where | `in downloads`, `on desktop`, `in documents`, `in <any folder in home>`, `in ~/some/path` |
 
-Every other word has to appear in the file name. Results come newest
-first, with your own files before those in hidden folders and in build
-or vendor trees (`build`, `vendor`, `third_party`, `dist`). "Last
+Every other word has to appear in the file name, or in its folder path as
+long as one of them is in the name: `f nzlauncher config` finds
+config.toml under a nzlauncher folder. Ranking works like fzf: a word at
+the start of the name beats one at a word start (after `-`, `_`, `.` or
+at a capital), which beats one in the middle, and a name that is exactly
+the word plus an extension beats them all. Files you open often, through
+nzlauncher or any app that records recent files, rank above better
+spelled ones. Then newest first, with your own files before those in
+hidden folders and in build or vendor trees (`build`, `vendor`,
+`third_party`, `dist`). "Last
 week", "last month" and "last year" are the calendar period before this
 one; "past week" and "past 3 days" count back from now. A search that
 finds nothing says what it looked for, so you can tell a typo from an
 empty month.
 
 A type word on its own only counts in the plural: `screenshot` still
-takes a screenshot, `screenshots` lists them. An app whose name starts
+takes a screenshot, `screenshots` lists them. Words that are as often
+part of a name only count as a type in the plural: `configs`, `books`,
+`fonts` are types, `config`, `book`, `font` are words to find. An app whose name starts
 with what you typed stays on top, so an app called Docs is still the
 first hit for `docs`.
 
@@ -179,10 +195,15 @@ the value.
 
 | Kind | Examples |
 |---|---|
-| units | `5 km to miles`, `72f in c`, `44 degrees celsius in fahrenheit`, `6 ft in cm`, `how many cm in 6 ft`, `1.5 gb to mib`, `2 cups to ml`, `100 kmh to mph` |
+| units | `5 km to miles`, `72f in c`, `44 degrees celsius in fahrenheit`, `44 degrees`, `6 ft in cm`, `how many cm in 6 ft`, `1.5 gb to mib`, `2 cups to ml`, `100 kmh to mph` |
 | currency | `100 usd to inr`, `$100 in inr`, `100$ in inr`, `100 dollars in rupees`, `50 euros to usd`, `100 usd inr` |
 | time | `time in tokyo`, `tokyo time`, `time in japan`, `3pm in london`, `3pm london to new york`, `15:00 utc in ist` |
 | dates | `days until christmas`, `days since 2026-01-01`, `in 30 days`, `10 days ago`, `today + 2 weeks`, `what day is 2026-12-25`, `week number`, a unix timestamp |
+
+Degrees without a unit are the local one: Fahrenheit in the US and the
+few other places that use it, Celsius elsewhere. That comes from
+`LC_MEASUREMENT` when set, then the country of the system time zone,
+then `LANG`, since plenty of people outside the US run en_US.
 
 Units cover length, mass, volume, temperature, data (`gb` is 1000³,
 `gib` 1024³), time, speed and area. Currencies are the ~30 the European

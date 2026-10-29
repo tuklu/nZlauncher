@@ -42,12 +42,22 @@ The daemon keeps every file under home in memory, apart from caches,
 build output and dependency trees: one entry per file (folder, name,
 size, mtime) with folder paths shared, all lowercased names packed into
 one buffer, and a list of entries for every trigram and every extension.
-A search walks the smallest set that holds every match: the shortest
-trigram list of the terms, the files of the asked types, or the run of
+A search walks the smallest set that holds every match: the union of
+each term's shortest trigram list, the files of the asked types, or the run of
 entries under the asked folders (the walk is depth first, so a folder's
 subtree is one run, found by binary search in the sorted folder list).
 Lists over 20,000 entries are split across cores, and only the best 25
 are kept while scanning.
+
+Each candidate is scored the way fzf does: name start 30, word start or
+capital 26, anywhere 20, plus 12 when the name is the term plus an
+extension; a term found only in the folder path scores 6 to 9, and at
+least one term has to be in the name. Long names lose up to 4. Files the
+user opens get up to 30 more: frecency of picks through nzlauncher, and
+the desktop's recently-used list; those paths are resolved to index
+entries once per change, so the boost costs a map lookup. When an
+explicit file search finds nothing, one more pass over every name accepts
+the letters in order, scored by how close together they sit.
 
 The index is rebuilt every 20 minutes and right after a change in home,
 Downloads, Desktop, Documents, Pictures, Screenshots, Videos or Music.
