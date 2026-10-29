@@ -187,13 +187,13 @@ func Workspace(q string) []action.Action {
 			acts = append(acts, action.Action{
 				ID: fmt.Sprintf("ws:%d", n), Name: fmt.Sprintf("Go to Workspace %d", n),
 				Icon: "󱂬", Group: "workspace",
-				Cmd: fmt.Sprintf("hyprctl dispatch workspace %d", n),
+				Cmd: fmt.Sprintf("nzlauncher ws %d", n),
 			})
 		}
 		acts = append(acts, action.Action{
 			ID: fmt.Sprintf("ws:move:%d", n), Name: fmt.Sprintf("Move Window to Workspace %d", n),
 			Icon: "󱂬", Group: "workspace",
-			Cmd: fmt.Sprintf("hyprctl dispatch movetoworkspace %d", n),
+			Cmd: fmt.Sprintf("nzlauncher ws move %d", n),
 		})
 		return acts
 	}

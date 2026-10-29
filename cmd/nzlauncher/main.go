@@ -3,15 +3,16 @@ package main
 
 import (
 	"fmt"
+	"github.com/tuklu/nZlauncher/internal/compositor"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/engine"
-	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/server"
 	"github.com/tuklu/nZlauncher/internal/shell"
 	"github.com/tuklu/nZlauncher/internal/ui/tui"
@@ -51,7 +52,9 @@ func main() {
 		if len(os.Args) < 3 {
 			usage()
 		}
-		err = hypr.Focus(os.Args[2])
+		err = compositor.Focus(os.Args[2])
+	case "ws":
+		err = runWorkspace(os.Args[2:])
 	case "setup":
 		err = runSetup()
 	case "wifi":
@@ -71,7 +74,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nzlauncher bar [query] | tui [query] | gtk [query] | pick | dmenu | query [text] | serve | setup | wifi connect|disconnect [ssid] | tweak power|dnd|nightlight|awake <value> | focus <address>")
+	fmt.Fprintln(os.Stderr, "usage: nzlauncher bar [query] | tui [query] | gtk [query] | pick | dmenu | query [text] | serve | setup | wifi connect|disconnect [ssid] | tweak power|dnd|nightlight|awake <value> | focus <window> | ws [move] <n>")
 	os.Exit(2)
 }
 
@@ -121,4 +124,24 @@ func runGTK(args []string) error {
 		return fmt.Errorf("the GTK face needs nzlauncher-gtk: %w", err)
 	}
 	return syscall.Exec(bin, append([]string{bin}, args...), os.Environ())
+}
+
+// runWorkspace switches to a workspace, or with "move" sends the focused
+// window there.
+func runWorkspace(args []string) error {
+	move := len(args) == 2 && args[0] == "move"
+	if move {
+		args = args[1:]
+	}
+	if len(args) != 1 {
+		return fmt.Errorf("usage: nzlauncher ws [move] <n>")
+	}
+	n, err := strconv.Atoi(args[0])
+	if err != nil || n < 1 {
+		return fmt.Errorf("no workspace %q", args[0])
+	}
+	if move {
+		return compositor.MoveToWorkspace(n)
+	}
+	return compositor.Workspace(n)
 }

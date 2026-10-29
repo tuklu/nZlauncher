@@ -59,17 +59,20 @@ var luaDispatch atomic.Bool
 
 // Focus switches to a window by address, on either config language.
 func Focus(address string) error {
-	classic := "dispatch focuswindow address:" + address
-	lua := fmt.Sprintf(`dispatch hl.dsp.focus({ window = "address:%s" })`, address)
+	return Dispatch("focuswindow address:"+address, fmt.Sprintf(`hl.dsp.focus({ window = "address:%s" })`, address))
+}
 
+// Dispatch runs a dispatcher, in the classic form or, on a Lua config, the
+// Lua one; which one worked is remembered.
+func Dispatch(classic, lua string) error {
 	if luaDispatch.Load() {
-		return expectOK(Request(lua))
+		return expectOK(Request("dispatch " + lua))
 	}
-	if err := expectOK(Request(classic)); err == nil {
+	if err := expectOK(Request("dispatch " + classic)); err == nil {
 		return nil
 	}
 	luaDispatch.Store(true)
-	return expectOK(Request(lua))
+	return expectOK(Request("dispatch " + lua))
 }
 
 func expectOK(reply []byte, err error) error {

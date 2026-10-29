@@ -1,15 +1,14 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/tuklu/nZlauncher/internal/compositor"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 
 	"github.com/tuklu/nZlauncher/internal/config"
-	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/identity"
 	"github.com/tuklu/nZlauncher/internal/server"
 	"github.com/tuklu/nZlauncher/internal/shell"
@@ -55,14 +54,7 @@ func runBar(initial string) error {
 // The window the user came from, captured before the launcher takes focus:
 // context for ranking and the event log.
 func focusedClass() string {
-	out, err := hypr.JSON("activewindow")
-	if err != nil {
-		return ""
-	}
-	var w struct {
-		Class string `json:"class"`
-	}
-	json.Unmarshal(out, &w)
+	w, _ := compositor.Focused()
 	return w.Class
 }
 

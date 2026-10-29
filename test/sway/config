@@ -1,0 +1,2 @@
+# The least sway needs to run headless for the tests.
+output HEADLESS-1 resolution 1280x720

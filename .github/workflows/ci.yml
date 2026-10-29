@@ -61,3 +61,20 @@ jobs:
       - name: test against the fakes
         run: '"$RUNNER_TEMP/mock/bin/python" test/dbusmock/run.py -v ./internal/wifi ./internal/tweaks ./internal/bluez'
 
+  # the compositor adapter against a real sway, headless
+  sway:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: sway and foot
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sway foot
+
+      - name: test against sway
+        run: test/sway/run.sh -v ./internal/compositor

@@ -2,8 +2,8 @@
 package shell
 
 import (
-	"bytes"
 	"fmt"
+	"github.com/tuklu/nZlauncher/internal/compositor"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/identity"
 )
 
@@ -31,10 +30,10 @@ func StartDetached(cmd *exec.Cmd) error {
 
 // Window class (TUI, GTK window mode) and layer namespace (GTK overlay)
 // that mark the launcher as still on screen.
-var launcherSurfaces = [][]byte{
-	[]byte(`"` + identity.TUIClass + `"`),
-	[]byte(`"` + identity.AppID + `"`),
-	[]byte(`"` + identity.Namespace + `"`),
+var launcherSurfaces = []string{
+	`"` + identity.TUIClass + `"`,
+	`"` + identity.AppID + `"`,
+	`"` + identity.Namespace + `"`,
 }
 
 const (
@@ -108,18 +107,7 @@ func processAlive(pid int) bool {
 }
 
 func launcherOnScreen() bool {
-	for _, what := range []string{"clients", "layers"} {
-		out, err := hypr.JSON(what)
-		if err != nil {
-			return false
-		}
-		for _, marker := range launcherSurfaces {
-			if bytes.Contains(out, marker) {
-				return true
-			}
-		}
-	}
-	return false
+	return compositor.OnScreen(launcherSurfaces)
 }
 
 func Quote(s string) string {

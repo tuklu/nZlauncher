@@ -1,8 +1,8 @@
 package providers
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/tuklu/nZlauncher/internal/compositor"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/config"
-	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/identity"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
@@ -22,23 +21,14 @@ func Windows() []action.Action {
 	if !On("windows") {
 		return nil
 	}
-	out, err := hypr.JSON("clients")
+	clients, err := compositor.Windows()
 	if err != nil {
-		return nil
-	}
-	var clients []struct {
-		Address string `json:"address"`
-		Class   string `json:"class"`
-		Title   string `json:"title"`
-		Mapped  bool   `json:"mapped"`
-	}
-	if json.Unmarshal(out, &clients) != nil {
 		return nil
 	}
 
 	var acts []action.Action
 	for _, c := range clients {
-		if !c.Mapped || c.Title == "" || strings.HasPrefix(c.Class, identity.AppID) {
+		if c.Title == "" || strings.HasPrefix(c.Class, identity.AppID) {
 			continue
 		}
 		title := []rune(c.Title)
@@ -51,7 +41,7 @@ func Windows() []action.Action {
 			Icon:     "󱂬",
 			Group:    "window",
 			Keywords: []string{c.Class, "window", "switch", "focus"},
-			Cmd:      "nzlauncher focus " + c.Address,
+			Cmd:      "nzlauncher focus " + shell.Quote(c.ID),
 		})
 	}
 	return acts

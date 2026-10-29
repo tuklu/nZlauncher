@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"github.com/tuklu/nZlauncher/internal/compositor"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,7 +14,6 @@ import (
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/files"
-	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/icons"
 	"github.com/tuklu/nZlauncher/internal/learn"
 	"github.com/tuklu/nZlauncher/internal/platform"
@@ -56,7 +56,7 @@ type state struct {
 	windows []action.Action
 }
 
-// Set by the Hyprland event watcher whenever the window list may differ from
+// Set by the compositor's event watcher whenever the window list may differ from
 // the cached one. Starts true so the first query fetches.
 var (
 	windowsStale    atomic.Bool
@@ -64,21 +64,14 @@ var (
 	startWatch      sync.Once
 )
 
-// Events that change what the window provider shows: which windows exist,
-// their titles, and where they are.
-var windowEvents = map[string]bool{
-	"openwindow": true, "closewindow": true, "movewindow": true, "movewindowv2": true,
-	"windowtitle": true, "windowtitlev2": true,
-}
-
-// windowList is the open windows, refetched only after Hyprland reported a
-// change. Without the event socket it fetches every time, as before.
+// windowList is the open windows, refetched only after the compositor
+// reported a change. Without the event socket it fetches every time, as before.
 func (s *state) windowList() []action.Action {
 	startWatch.Do(func() {
 		windowsStale.Store(true)
 		watchingWindows.Store(true)
 		go func() {
-			hypr.Watch(func(e string) bool { return windowEvents[e] }, func() { windowsStale.Store(true) })
+			compositor.Watch(func() { windowsStale.Store(true) })
 			watchingWindows.Store(false)
 		}()
 	})
