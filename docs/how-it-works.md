@@ -122,3 +122,29 @@ Learning is stored per id, so ids are kept stable:
 | windows | `win:<class>`, so switching to an app is learned across windows |
 | providers | `<provider>:<thing>`, like `wifi:home-5g` or `bt:<mac>` |
 | plugins | whatever the plugin prints |
+
+## Speed
+
+Measured on an i5-11300H (Hyprland 0.56, 158 desktop entries, 1178 logged
+launches), before and after the engine rework in 0.3:
+
+| | 0.2 | 0.3 |
+|---|---|---|
+| keystroke, empty query | 21.2ms | 0.75ms |
+| keystroke, `fire` | 21.2ms | 0.20ms |
+| keystroke, `set volume 40` | 11.7ms | 0.07ms |
+| `nzlauncher query fire`, one shot | 90ms | 5.7ms (daemon), 21ms (no daemon) |
+| CLI startup | 62ms | 4ms |
+| bar to visible, GTK face | 1057ms | 22-39ms (resident, after the first press) |
+| bar to visible, TUI face | 1489ms | 699ms (mostly ghostty starting) |
+
+Where it comes from: catalog, apps and the learning model stay loaded and
+reload only when their files change; the window list comes from Hyprland's
+socket and is refetched only after window events; the CLI has no GTK linked
+in; the GTK face stays resident and only shows and hides.
+
+Reproduce the per-stage numbers with:
+
+```sh
+go test ./internal/engine -run '^$' -bench . -benchtime 50x
+```
