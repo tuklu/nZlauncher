@@ -10,18 +10,21 @@ import (
 	"github.com/tuklu/nZlauncher/internal/icons"
 )
 
-// Apps scans .desktop entries. The user dir is scanned first so it
-// overrides system entries with the same id.
-func Apps(lib *icons.Library) []action.Action {
-	dirs := []string{
+// AppDirs are scanned in this order, user first.
+func AppDirs() []string {
+	return []string{
 		filepath.Join(os.Getenv("HOME"), ".local/share/applications"),
 		"/usr/local/share/applications",
 		"/usr/share/applications",
 	}
+}
 
+// Apps scans .desktop entries. The user dir is scanned first so it
+// overrides system entries with the same id.
+func Apps(lib *icons.Library) []action.Action {
 	seen := map[string]bool{}
 	var apps []action.Action
-	for _, dir := range dirs {
+	for _, dir := range AppDirs() {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
 			continue

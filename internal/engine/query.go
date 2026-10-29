@@ -3,29 +3,16 @@ package engine
 
 import (
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/tuklu/nZlauncher/internal/action"
-	"github.com/tuklu/nZlauncher/internal/config"
-	"github.com/tuklu/nZlauncher/internal/icons"
 	"github.com/tuklu/nZlauncher/internal/learn"
 	"github.com/tuklu/nZlauncher/internal/providers"
-	"github.com/tuklu/nZlauncher/internal/sysinfo"
 )
 
 const topCount = 8
-
-func gatherAll() ([]action.Action, error) {
-	catalog, err := config.Load()
-	if err != nil {
-		return nil, err
-	}
-	lib := icons.Load(filepath.Join(config.Dir(), "icons"), catalog.Settings.IconLibrary)
-	return append(catalog.Actions, providers.Apps(lib)...), nil
-}
 
 var groupNames = map[string]bool{
 	"power": true, "toggle": true, "capture": true, "info": true, "app": true,
@@ -34,16 +21,16 @@ var groupNames = map[string]bool{
 // Query is the engine: every frontend (TUI, GTK, scripts via `nz query`)
 // consumes this one function.
 func Query(raw string) ([]action.Action, error) {
-	actions, err := gatherAll()
+	start := time.Now()
+	snap, err := cache.snapshot(start)
 	if err != nil {
 		return nil, err
 	}
-	events := learn.LoadEvents()
-	stats := learn.Stats(events)
+	actions, stats := snap.actions, snap.stats
 	ctx := queryContext{
-		model:   learn.BuildModel(events),
-		now:     time.Now(),
-		ssid:    sysinfo.CurrentSSID(),
+		model:   snap.model,
+		now:     start,
+		ssid:    snap.ssid,
 		focused: os.Getenv("NZ_FOCUSED"),
 	}
 	now := ctx.now.Unix()
