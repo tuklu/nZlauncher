@@ -18,6 +18,7 @@ import (
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/engine"
+	"github.com/tuklu/nZlauncher/internal/providers"
 )
 
 type Request struct {
@@ -87,6 +88,10 @@ func Serve() error {
 	defer os.Remove(path)
 
 	engine.Warm()
+	go func() {
+		providers.PruneClipCache()
+		providers.WarmClipboard()
+	}()
 	for {
 		conn, err := ln.Accept()
 		if err != nil {

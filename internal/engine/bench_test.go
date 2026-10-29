@@ -63,3 +63,15 @@ func BenchmarkSSID(b *testing.B) {
 		sysinfo.CurrentSSID()
 	}
 }
+
+func BenchmarkClipboard(b *testing.B) {
+	for b.Loop() {
+		providers.Clipboard("")
+	}
+}
+
+func BenchmarkBluetooth(b *testing.B) {
+	for b.Loop() {
+		providers.Bluetooth("")
+	}
+}
