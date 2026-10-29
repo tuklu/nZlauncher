@@ -20,6 +20,7 @@ Other commands:
 | `nzlauncher gtk [query]` | open the GTK face directly |
 | `nzlauncher query [text]` | print results as TSV (`id`, `cmd`, `display`), for scripts |
 | `nzlauncher pick [-p prompt] [-i]` | dmenu replacement, see below |
+| `nzlauncher dmenu [dmenu flags]` | drop-in for dmenu, rofi `-dmenu`, walker `--dmenu` |
 
 ## Keys
 
@@ -76,7 +77,7 @@ The first word can send the query to one provider:
 | `emoji fire` | 1,784 emoji, pick to copy |
 | `file notes`, `f` | file search with fd, recent files when empty |
 | `keys vol` | every Hyprland keybind, pick to run it |
-| `wallpaper`, `wp` | images in `~/.config/nzlauncher/wallpaper`, pick to set |
+| `wallpaper`, `wp` | images in the `wallpaper_dir` setting, pick to set |
 | `transcode` | pick a media file, then a format and resolution |
 
 If a full TUI for that area is installed (impala, bluetui, wiremix,
@@ -142,3 +143,15 @@ name=$(nzlauncher pick -i -p "Name" < /dev/null)    # -i returns typed text if n
 ```
 
 The window class is `dev.tuklu.nzlauncher.pick`, so you can give it its own rules.
+
+### dmenu mode
+
+`nzlauncher dmenu` takes dmenu's flags, so scripts written for dmenu, rofi
+`-dmenu` or walker `--dmenu` work unchanged. `-p` sets the prompt; look and
+layout flags (`-l`, `-fn`, `-nb`, ...) are accepted and ignored. Enter prints
+the selection, or what you typed when nothing matches, and cancelling exits 1.
+Linked as `dmenu`, the binary behaves this way without the subcommand:
+
+```sh
+ln -s /usr/bin/nzlauncher ~/.local/bin/dmenu
+```
