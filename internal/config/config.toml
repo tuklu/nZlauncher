@@ -61,3 +61,11 @@
 # url = true              # open example.com
 # run = true              # run it as a command in a terminal
 # search = true           # search the web
+
+[backends]
+# What drives each part of the system is detected from the running services;
+# `nzlauncher setup` shows what was found. Name one here to override it.
+# wifi = "iwd"                       # iwd, networkmanager
+# compositor = "hyprland"
+# power = "power-profiles-daemon"    # power-profiles-daemon, tuned
+# notifications = "mako"

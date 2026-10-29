@@ -56,6 +56,33 @@ into `~/.cache/nzlauncher/rates.json`. A query only reads that file, so
 conversions work offline with the last rates, and the hint says how old
 they are. `currency = false` stops the fetching too.
 
+### Backends
+
+What drives each part of the system is found from the running services,
+not guessed from the distro: a Wi-Fi service on the system bus (iwd,
+NetworkManager), the compositor from its socket variables, the power
+daemon, the notification daemon by the name it reports. `nzlauncher setup`
+prints what it found:
+
+```
+compositor     hyprland
+wifi           iwd
+power          power-profiles-daemon
+notifications  mako
+distro         arch
+```
+
+When NetworkManager runs it is the one used for Wi-Fi, even when it drives
+iwd underneath. `[backends]` overrides any of them:
+
+```toml
+[backends]
+wifi = "networkmanager"
+```
+
+On NixOS and ostree systems (Fedora Silverblue and friends) the setup is
+marked immutable, and tweaks stay runtime changes.
+
 The look comes from `theme/nz-gtk.css` and `theme/nz-tui.toml` when they
 exist, otherwise the built-in theme. nZlauncher never writes into `theme/`,
 so a desktop theme can link the whole directory in.

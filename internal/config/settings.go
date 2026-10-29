@@ -39,6 +39,8 @@ type Settings struct {
 
 	Providers map[string]bool `toml:"providers"`
 	Fallbacks map[string]bool `toml:"fallbacks"`
+	// capability -> backend, over what is detected: wifi = "iwd"
+	Backends map[string]string `toml:"backends"`
 }
 
 // The [settings] block catalog.toml carried before config.toml existed.

@@ -52,6 +52,8 @@ func main() {
 			usage()
 		}
 		err = hypr.Focus(os.Args[2])
+	case "setup":
+		err = runSetup()
 	case "after-close":
 		err = shell.RunAfterClose(os.Args[2:])
 	default:
@@ -65,7 +67,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nzlauncher bar [query] | tui [query] | gtk [query] | pick | dmenu | query [text] | serve | focus <address>")
+	fmt.Fprintln(os.Stderr, "usage: nzlauncher bar [query] | tui [query] | gtk [query] | pick | dmenu | query [text] | serve | setup | focus <address>")
 	os.Exit(2)
 }
 

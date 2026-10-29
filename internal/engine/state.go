@@ -15,6 +15,7 @@ import (
 	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/icons"
 	"github.com/tuklu/nZlauncher/internal/learn"
+	"github.com/tuklu/nZlauncher/internal/platform"
 	"github.com/tuklu/nZlauncher/internal/providers"
 	"github.com/tuklu/nZlauncher/internal/sysinfo"
 )
@@ -132,6 +133,7 @@ func (s *state) refreshSettings() {
 	s.settingsStamp = stampOf(config.ConfigPath(), config.CatalogPath())
 	settings := s.settings
 	providers.Configure(settings.Provider)
+	platform.Configure(settings.Backends)
 }
 
 func (s *state) refreshCatalog() {
