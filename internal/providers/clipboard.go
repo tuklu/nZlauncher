@@ -10,6 +10,9 @@ import (
 
 // clip / clipboard — history via cliphist; picking re-copies the entry.
 func Clipboard(q string) []action.Action {
+	if !On("clipboard") {
+		return nil
+	}
 	q = strings.ToLower(q)
 	out, err := exec.Command("cliphist", "list").Output()
 	if err != nil {

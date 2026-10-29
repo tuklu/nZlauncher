@@ -28,6 +28,9 @@ const ssidTTL = 10 * time.Second
 type state struct {
 	mu sync.Mutex
 
+	settingsStamp string
+	settings      config.Settings
+
 	catalogStamp string
 	catalog      config.Catalog
 	catalogErr   error
@@ -89,16 +92,18 @@ var cache state
 // snapshot is one query's view: actions is a private copy, since ranking
 // sorts and appends in place.
 type snapshot struct {
-	actions []action.Action
-	stats   map[string]learn.Stat
-	model   *learn.Model
-	ssid    string
+	actions  []action.Action
+	stats    map[string]learn.Stat
+	model    *learn.Model
+	ssid     string
+	settings config.Settings
 }
 
 func (s *state) snapshot(now time.Time) (snapshot, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.refreshSettings()
 	s.refreshCatalog()
 	if s.catalogErr != nil {
 		return snapshot{}, s.catalogErr
@@ -111,7 +116,22 @@ func (s *state) snapshot(now time.Time) (snapshot, error) {
 
 	actions := make([]action.Action, 0, len(s.catalog.Actions)+len(s.apps))
 	actions = append(append(actions, s.catalog.Actions...), s.apps...)
-	return snapshot{actions: actions, stats: s.stats, model: s.model, ssid: s.ssid}, nil
+	return snapshot{actions: actions, stats: s.stats, model: s.model, ssid: s.ssid, settings: s.settings}, nil
+}
+
+// The catalog stamp is part of it: a legacy [settings] block lives there.
+func (s *state) refreshSettings() {
+	stamp := stampOf(config.ConfigPath(), config.CatalogPath())
+	if stamp == s.settingsStamp && s.settingsStamp != "" {
+		return
+	}
+	// a broken config.toml keeps the last good settings
+	if settings, err := config.LoadSettings(); err == nil || s.settingsStamp == "" {
+		s.settings = settings
+	}
+	s.settingsStamp = stampOf(config.ConfigPath(), config.CatalogPath())
+	settings := s.settings
+	providers.Configure(settings.Provider)
 }
 
 func (s *state) refreshCatalog() {
@@ -128,13 +148,13 @@ func (s *state) refreshCatalog() {
 // decorated from.
 func (s *state) refreshApps() {
 	iconDir := filepath.Join(config.Dir(), "icons")
-	stamp := s.catalog.Settings.IconLibrary + stampOf(append(providers.AppDirs(), iconDir)...)
+	stamp := s.settings.IconLibrary + stampOf(append(providers.AppDirs(), iconDir)...)
 	if stamp == s.appsStamp && s.apps != nil {
 		return
 	}
-	lib := icons.Load(iconDir, s.catalog.Settings.IconLibrary)
+	lib := icons.Load(iconDir, s.settings.IconLibrary)
 	s.apps = providers.Apps(lib)
-	s.appsStamp = s.catalog.Settings.IconLibrary + stampOf(append(providers.AppDirs(), iconDir)...)
+	s.appsStamp = s.settings.IconLibrary + stampOf(append(providers.AppDirs(), iconDir)...)
 }
 
 // The event log is append-only: read the new tail, and rebuild the

@@ -15,6 +15,9 @@ import (
 
 // keys / binds — every Hyprland binding, searchable; picking one executes it.
 func Keys(q string) []action.Action {
+	if !On("keys") {
+		return nil
+	}
 	q = strings.ToLower(q)
 	out, err := hypr.JSON("binds")
 	if err != nil {

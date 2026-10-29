@@ -1,10 +1,5 @@
 # nZlauncher catalog, lives at ~/.config/nzlauncher/catalog.toml
-# nz reads this fresh on every launch; edit and it just works.
-
-[settings]
-interface = "gtk"    # tui | gtk
-gtk_mode = "window"  # overlay (layer-shell, above everything) | window (managed by Hyprland rules)
-icon_library = "nerd" # TUI app glyphs: ~/.config/nzlauncher/icons/<name>.toml
+# Your actions. Settings live in config.toml next to this file.
 
 # ── Power ─────────────────────────────────────────────────────────────────────
 

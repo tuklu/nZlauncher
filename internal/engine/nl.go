@@ -75,7 +75,7 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 		}
 
 	case "search", "google":
-		return []action.Action{searchAction(arg)}
+		return []action.Action{searchAction(arg, ctx.settings)}
 
 	case "find":
 		return providers.Files(arg)

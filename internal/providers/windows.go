@@ -19,6 +19,9 @@ import (
 // "switch to it" alongside "launch another". Frecency keys on class, not
 // address, so the habit of switching to an app survives window churn.
 func Windows() []action.Action {
+	if !On("windows") {
+		return nil
+	}
 	out, err := hypr.JSON("clients")
 	if err != nil {
 		return nil
@@ -56,6 +59,9 @@ func Windows() []action.Action {
 
 // kill [name] — user processes sorted by CPU, filtered by name.
 func Kill(q string) []action.Action {
+	if !On("kill") {
+		return nil
+	}
 	q = strings.ToLower(q)
 	out, err := exec.Command("ps", "-u", os.Getenv("USER"),
 		"-o", "pid,pcpu,pmem,comm", "--sort=-pcpu", "--no-headers").Output()
@@ -90,9 +96,12 @@ func Kill(q string) []action.Action {
 // wallpaper [name]: images in the wallpaper_dir setting, applied with
 // wallpaper_cmd and the image path appended.
 func Wallpaper(q string) []action.Action {
+	if !On("wallpaper") {
+		return nil
+	}
 	q = strings.ToLower(q)
-	catalog, _ := config.Load()
-	dir, setCmd := catalog.Settings.Wallpapers()
+	settings, _ := config.LoadSettings()
+	dir, setCmd := settings.Wallpapers()
 	if _, err := exec.LookPath(strings.Fields(setCmd)[0]); err != nil {
 		return nil
 	}

@@ -15,6 +15,9 @@ import (
 
 // file / f — fd search under home; bare query shows recently used files.
 func Files(q string) []action.Action {
+	if !On("files") {
+		return nil
+	}
 	if q == "" {
 		return recentFiles(15)
 	}

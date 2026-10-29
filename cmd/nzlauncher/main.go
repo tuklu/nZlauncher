@@ -94,8 +94,8 @@ func runQuery(raw string) error {
 
 // A broken catalog still opens a face; the engine reports the error in place.
 func loadSettings() config.Settings {
-	catalog, _ := config.Load()
-	return catalog.Settings
+	settings, _ := config.LoadSettings()
+	return settings
 }
 
 // The GTK face lives in nzlauncher-gtk, next to this binary or on PATH.

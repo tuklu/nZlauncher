@@ -13,6 +13,9 @@ import (
 
 // bt / bluetooth — power toggle plus paired devices with live connect state.
 func Bluetooth(q string) []action.Action {
+	if !On("bluetooth") {
+		return nil
+	}
 	q = strings.ToLower(q)
 	if _, err := exec.LookPath("bluetoothctl"); err != nil {
 		return nil
@@ -79,6 +82,9 @@ func btDevices(filter string) map[string]string {
 
 // audio / sound / output — pick a specific output device, current one marked.
 func Audio(q string) []action.Action {
+	if !On("audio") {
+		return nil
+	}
 	q = strings.ToLower(q)
 	out, err := exec.Command("pactl", "-f", "json", "list", "sinks").Output()
 	if err != nil {
@@ -115,6 +121,9 @@ func Audio(q string) []action.Action {
 
 // vol / volume — direct percentage or presets, plus mute toggle.
 func Volume(q string) []action.Action {
+	if !On("volume") {
+		return nil
+	}
 	if n, err := strconv.Atoi(q); err == nil && n >= 0 && n <= 100 {
 		return []action.Action{{
 			ID: "vol:set", Name: fmt.Sprintf("Volume %d%%", n), Icon: "󰕾", Group: "audio",
@@ -136,6 +145,9 @@ func Volume(q string) []action.Action {
 
 // ws / workspace — jump or move the active window; "ws 3", "ws move 3".
 func Workspace(q string) []action.Action {
+	if !On("workspace") {
+		return nil
+	}
 	move := false
 	if rest, ok := PrefixArg(q, "move"); ok {
 		move, q = true, rest
@@ -170,6 +182,9 @@ func Workspace(q string) []action.Action {
 
 // bright / brightness — direct percentage or presets, via the brightness script.
 func Brightness(q string) []action.Action {
+	if !On("brightness") {
+		return nil
+	}
 	if n, err := strconv.Atoi(q); err == nil && n >= 1 && n <= 100 {
 		return []action.Action{{
 			ID: "bright:set", Name: fmt.Sprintf("Brightness %d%%", n), Icon: "󰃟", Group: "display",

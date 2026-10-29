@@ -16,6 +16,9 @@ import (
 //
 //	id <TAB> shell-command <TAB> display text
 func Plugin(word, q string) ([]action.Action, bool) {
+	if !On("plugins") {
+		return nil, false
+	}
 	path := filepath.Join(config.Dir(), "providers.d", word)
 	info, err := os.Stat(path)
 	if err != nil || info.IsDir() || info.Mode()&0o111 == 0 {

@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
 // An unmatched query is never a dead end: it becomes an intent.
-func fallbacks(raw string) []action.Action {
+func fallbacks(raw string, s config.Settings) []action.Action {
 	q := strings.TrimSpace(raw)
 	if q == "" {
 		return nil
@@ -19,7 +20,7 @@ func fallbacks(raw string) []action.Action {
 
 	var fb []action.Action
 
-	if result, ok := evalExpr(q); ok {
+	if result, ok := evalExpr(q); ok && s.Fallback("calc") {
 		fb = append(fb, action.Action{
 			ID: "fallback:calc", Group: "fallback", Icon: "󰃬",
 			Name: "= " + result + "   (enter to copy)",
@@ -28,8 +29,10 @@ func fallbacks(raw string) []action.Action {
 	}
 
 	if u, ok := urlAction(q); ok {
-		fb = append(fb, u)
-	} else if first := strings.Fields(q); len(first) > 0 {
+		if s.Fallback("url") {
+			fb = append(fb, u)
+		}
+	} else if first := strings.Fields(q); len(first) > 0 && s.Fallback("run") {
 		if _, err := exec.LookPath(first[0]); err == nil {
 			script := q + `; printf '\n[done] press any key'; read -n1 -s`
 			fb = append(fb, action.Action{
@@ -40,14 +43,17 @@ func fallbacks(raw string) []action.Action {
 		}
 	}
 
-	return append(fb, searchAction(q))
+	if s.Fallback("search") {
+		fb = append(fb, searchAction(q, s))
+	}
+	return fb
 }
 
-func searchAction(q string) action.Action {
+func searchAction(q string, s config.Settings) action.Action {
 	return action.Action{
 		ID: "fallback:search", Group: "fallback", Icon: "󰍉",
 		Name: "Search web: " + q,
-		Cmd:  "uwsm-app -- xdg-open " + shell.Quote("https://www.google.com/search?q="+url.QueryEscape(q)),
+		Cmd:  "uwsm-app -- xdg-open " + shell.Quote(strings.ReplaceAll(s.SearchURL(), "%s", url.QueryEscape(q))),
 	}
 }
 

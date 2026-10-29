@@ -22,6 +22,9 @@ func AppDirs() []string {
 // Apps scans .desktop entries. The user dir is scanned first so it
 // overrides system entries with the same id.
 func Apps(lib *icons.Library) []action.Action {
+	if !On("apps") {
+		return nil
+	}
 	seen := map[string]bool{}
 	var apps []action.Action
 	for _, dir := range AppDirs() {

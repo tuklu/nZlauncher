@@ -1,51 +1,61 @@
 # Configuration
 
-Everything lives in `~/.config/nzlauncher/`. Missing files are written with
-defaults on first run, and everything is read again on every launch, so
-edits apply the next time you open the launcher. No rebuild, no reload.
+Everything lives in `~/.config/nzlauncher/`. Missing files are written on first
+run, and every file is checked for changes on each query, so edits apply
+right away. No rebuild, no reload.
 
 ```
 ~/.config/nzlauncher/
-  catalog.toml          settings + your static actions
+  config.toml           settings, every one commented with its default
+  catalog.toml          your static actions
   icons/nerd.toml       built-in icon library (copy it to make your own)
   theme/nz-tui.toml     TUI colors
   theme/nz-gtk.css      GTK styling
   providers.d/          your own providers, see plugins.md
-  wallpaper/            images for the wallpaper provider
 ```
 
-## catalog.toml
+## config.toml
 
-### Settings
+Every setting is optional. The first run writes the file with each line
+commented out and showing its default, so it doubles as the reference.
 
 ```toml
-[settings]
-interface = "tui"       # tui | gtk
-gtk_mode = "overlay"    # overlay | window
-icon_library = "nerd"   # name of a file in icons/, without .toml
-wallpaper_dir = "~/Pictures/Wallpapers"
-wallpaper_cmd = "swaybg -m fill -i"
+interface = "tui"       # face `nzlauncher bar` opens: tui | gtk
+gtk_mode = "overlay"    # GTK face: overlay | window
+icon_library = "nerd"   # TUI glyphs: icons/<name>.toml
+
+[wallpaper]
+dir = "~/Pictures/Wallpapers"
+cmd = "swaybg -m fill -i"   # the image path is appended
+
+[search]
+url = "https://www.google.com/search?q=%s"
+
+[providers]             # false turns one off everywhere
+emoji = false
+
+[fallbacks]             # what an unmatched query turns into
+run = false             # calc, url, run, search
 ```
 
-`interface` picks the face that `nzlauncher bar` opens.
+`gtk_mode = "overlay"` is a layer-shell surface above everything, including
+fullscreen windows; compositor layer rules apply to it. `"window"` is a
+normal window, so window rules and animations apply.
 
-`gtk_mode` only matters for the GTK face:
+A provider turned off disappears from its prefix word, from sentences that
+use it and from the first view. The providers are `apps`, `windows`,
+`bluetooth`, `wifi`, `audio`, `volume`, `brightness`, `monitor`,
+`workspace`, `wallpaper`, `clipboard`, `emoji`, `files`, `keys`, `kill`,
+`transcode` and `plugins` (everything in `providers.d/`).
 
-- `overlay` is a layer-shell surface above everything, including
-  fullscreen windows. Hyprland window rules don't apply to it, layer
-  rules do.
-- `window` is a normal window, so your window rules and animations
-  apply.
+The look comes from `theme/nz-gtk.css` and `theme/nz-tui.toml` when they
+exist, otherwise the built-in theme. nZlauncher never writes into `theme/`,
+so a desktop theme can link the whole directory in.
 
-`icon_library` is covered below.
+Before config.toml, settings lived in a `[settings]` block in catalog.toml.
+That block is still read, and anything in config.toml takes precedence.
 
-`wallpaper_dir` is where the `wallpaper` prefix looks for images, and
-`wallpaper_cmd` sets one, with the image path appended. The provider stays
-quiet if that command isn't installed.
-
-The look comes from `theme/nz-gtk.css` and `theme/nz-tui.toml` next to the
-catalog when they exist, otherwise the built-in theme. nZlauncher never
-writes into `theme/`, so a desktop theme can link the whole directory in.
+## catalog.toml
 
 ### Actions
 

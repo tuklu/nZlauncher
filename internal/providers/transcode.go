@@ -17,6 +17,9 @@ var videoExts = map[string]bool{".mp4": true, ".mov": true, ".m4v": true, ".mkv"
 // format+resolution combo. The combo entry runs the transcode script
 // non-interactively with all args.
 func Transcode(q string) []action.Action {
+	if !On("transcode") {
+		return nil
+	}
 	if path, ok := quotedPath(q); ok {
 		return transcodeCombos(path)
 	}

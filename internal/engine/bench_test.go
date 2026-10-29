@@ -31,8 +31,8 @@ func BenchmarkCatalog(b *testing.B) {
 }
 
 func BenchmarkApps(b *testing.B) {
-	catalog, _ := config.Load()
-	lib := icons.Load(filepath.Join(config.Dir(), "icons"), catalog.Settings.IconLibrary)
+	settings, _ := config.LoadSettings()
+	lib := icons.Load(filepath.Join(config.Dir(), "icons"), settings.IconLibrary)
 	for b.Loop() {
 		providers.Apps(lib)
 	}

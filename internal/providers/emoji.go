@@ -13,6 +13,9 @@ var emojiData string
 
 // emoji — embedded unicode table, picking copies to clipboard.
 func Emoji(q string) []action.Action {
+	if !On("emoji") {
+		return nil
+	}
 	q = strings.ToLower(q)
 	var acts []action.Action
 	for _, line := range strings.Split(emojiData, "\n") {

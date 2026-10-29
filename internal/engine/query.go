@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/learn"
 	"github.com/tuklu/nZlauncher/internal/providers"
 )
@@ -34,10 +35,11 @@ func QueryFor(raw, focusedClass string) ([]action.Action, error) {
 	}
 	actions, stats := snap.actions, snap.stats
 	ctx := queryContext{
-		model:   snap.model,
-		now:     start,
-		ssid:    snap.ssid,
-		focused: focusedClass,
+		model:    snap.model,
+		now:      start,
+		ssid:     snap.ssid,
+		settings: snap.settings,
+		focused:  focusedClass,
 	}
 	now := ctx.now.Unix()
 	q := strings.ToLower(strings.TrimSpace(raw))
@@ -52,12 +54,12 @@ func QueryFor(raw, focusedClass string) ([]action.Action, error) {
 		ranked = byGroup(actions, q, stats, now)
 	default:
 		if nl := nlIntent(actions, stats, ctx, q); len(nl) > 0 {
-			ranked = append(nl, fallbacks(raw)...)
+			ranked = append(nl, fallbacks(raw, ctx.settings)...)
 		} else if provided, ok := providers.ByPrefix(strings.TrimSpace(raw)); ok {
-			ranked = append(provided, fallbacks(raw)...)
+			ranked = append(provided, fallbacks(raw, ctx.settings)...)
 		} else {
 			pool := append(actions, cache.windowList()...)
-			ranked = append(rank(pool, stats, ctx, q), fallbacks(raw)...)
+			ranked = append(rank(pool, stats, ctx, q), fallbacks(raw, ctx.settings)...)
 		}
 	}
 
@@ -76,10 +78,11 @@ func frecencySorted(actions []action.Action, stats map[string]learn.Stat, now in
 }
 
 type queryContext struct {
-	model   *learn.Model
-	now     time.Time
-	ssid    string
-	focused string
+	settings config.Settings
+	model    *learn.Model
+	now      time.Time
+	ssid     string
+	focused  string
 }
 
 func (c queryContext) bonus(id string) float64 {

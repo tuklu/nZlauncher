@@ -1,0 +1,51 @@
+# nZlauncher settings. Every line here is commented out and shows the
+# default; uncomment and change what you want. Your actions live in
+# catalog.toml next to this file.
+
+# Face that `nzlauncher bar` opens: "tui" or "gtk".
+# interface = "tui"
+
+# GTK face only. "overlay" floats above everything, including fullscreen
+# windows; "window" is a normal window your compositor's rules apply to.
+# gtk_mode = "overlay"
+
+# TUI app glyphs: icons/<name>.toml in this directory.
+# icon_library = "nerd"
+
+[wallpaper]
+# Images the `wallpaper` prefix lists, and the command that sets one (the
+# image path is appended).
+# dir = "~/Pictures/Wallpapers"
+# cmd = "swaybg -m fill -i"
+
+[search]
+# Web search fallback; %s is replaced by the query.
+# url = "https://www.google.com/search?q=%s"
+
+[providers]
+# Set any to false to turn it off everywhere: its prefix word, sentences
+# that use it, and the first view.
+# apps = true
+# windows = true
+# bluetooth = true
+# wifi = true
+# audio = true
+# volume = true
+# brightness = true
+# monitor = true
+# workspace = true
+# wallpaper = true
+# clipboard = true
+# emoji = true
+# files = true
+# keys = true
+# kill = true
+# transcode = true
+# plugins = true          # executables in providers.d/
+
+[fallbacks]
+# What an unmatched query turns into.
+# calc = true             # = 2+2
+# url = true              # open example.com
+# run = true              # run it as a command in a terminal
+# search = true           # search the web

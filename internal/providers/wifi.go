@@ -15,6 +15,9 @@ import (
 // Known networks connect directly; new ones need a passphrase, which is what
 // the impala escape hatch is for.
 func Wifi(q string) []action.Action {
+	if !On("wifi") {
+		return nil
+	}
 	q = strings.ToLower(q)
 	iface := wifiInterface()
 

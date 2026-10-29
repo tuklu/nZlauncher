@@ -1,5 +1,5 @@
-// Package config loads ~/.config/nzlauncher/catalog.toml: settings plus the
-// static action catalog, written with embedded defaults on first run.
+// Package config loads ~/.config/nzlauncher: config.toml for settings and
+// catalog.toml for the static actions, both written on first run.
 package config
 
 import (
@@ -17,46 +17,8 @@ import (
 //go:embed catalog.toml
 var defaultCatalog []byte
 
-type Settings struct {
-	Interface    string `toml:"interface"`
-	GtkMode      string `toml:"gtk_mode"`
-	IconLibrary  string `toml:"icon_library"`  // name of ~/.config/nzlauncher/icons/<name>.toml
-	WallpaperDir string `toml:"wallpaper_dir"` // images the wallpaper provider lists
-	WallpaperCmd string `toml:"wallpaper_cmd"` // run with the chosen image appended
-}
-
-// UI is "tui" unless the catalog asks for "gtk".
-func (s Settings) UI() string {
-	if s.Interface == "gtk" {
-		return "gtk"
-	}
-	return "tui"
-}
-
-// GTKMode is "overlay" (layer-shell surface above everything, Spotlight-style)
-// unless the catalog asks for "window" (a normal toplevel managed by Hyprland).
-func (s Settings) GTKMode() string {
-	if s.GtkMode == "window" {
-		return "window"
-	}
-	return "overlay"
-}
-
 type Catalog struct {
-	Settings Settings        `toml:"settings"`
-	Actions  []action.Action `toml:"action"`
-}
-
-// Wallpapers default to ~/Pictures/Wallpapers, set with swaybg.
-func (s Settings) Wallpapers() (dir, cmd string) {
-	dir, cmd = s.WallpaperDir, s.WallpaperCmd
-	if dir == "" {
-		dir = "~/Pictures/Wallpapers"
-	}
-	if cmd == "" {
-		cmd = "swaybg -m fill -i"
-	}
-	return ExpandHome(dir), cmd
+	Actions []action.Action `toml:"action"`
 }
 
 func ExpandHome(p string) string {
