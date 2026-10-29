@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 )
 
 type unit struct {
@@ -163,14 +164,34 @@ func localeRegion(locale string) string {
 }
 
 // zoneCountry is the country of the system time zone, from zone1970.tab:
-// Asia/Kolkata is IN.
+// Asia/Kolkata is IN. Kept per zone: the table is 20 KB to scan.
 func zoneCountry() string {
-	zone := os.Getenv("TZ")
-	if zone == "" {
-		if target, err := os.Readlink("/etc/localtime"); err == nil {
-			_, zone, _ = strings.Cut(target, "zoneinfo/")
-		}
+	zone := systemZone()
+	zoneCountries.Lock()
+	defer zoneCountries.Unlock()
+	if c, ok := zoneCountries.byZone[zone]; ok {
+		return c
 	}
+	c := lookupZoneCountry(zone)
+	zoneCountries.byZone[zone] = c
+	return c
+}
+
+var zoneCountries = struct {
+	sync.Mutex
+	byZone map[string]string
+}{byZone: map[string]string{}}
+
+func systemZone() string {
+	if zone := os.Getenv("TZ"); zone != "" {
+		return zone
+	}
+	target, _ := os.Readlink("/etc/localtime")
+	_, zone, _ := strings.Cut(target, "zoneinfo/")
+	return zone
+}
+
+func lookupZoneCountry(zone string) string {
 	if zone == "" {
 		return ""
 	}
