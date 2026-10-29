@@ -1,0 +1,47 @@
+# Maintainer: tuklu
+pkgname=nzlauncher-git
+pkgver=r0
+pkgrel=1
+pkgdesc="Launcher for Hyprland that learns how you use it"
+arch=('x86_64' 'aarch64')
+url="https://github.com/tuklu/nZlauncher"
+license=('MIT')
+depends=('gtk4' 'gtk4-layer-shell' 'glib2' 'hyprland')
+makedepends=('go' 'git')
+optdepends=(
+  'ghostty: TUI face'
+  'cliphist: clipboard provider'
+  'wl-clipboard: clipboard provider, copying results'
+  'bluez-utils: bluetooth provider'
+  'iwd: wifi provider'
+  'fd: file search'
+  'fzf: nzlauncher pick'
+  'hyprmoncfg: monitor provider'
+  'swaybg: default wallpaper command'
+)
+provides=('nzlauncher')
+conflicts=('nzlauncher')
+source=("git+https://github.com/tuklu/nZlauncher.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd nZlauncher
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  cd nZlauncher
+  export CGO_CPPFLAGS="${CPPFLAGS}"
+  export CGO_CFLAGS="${CFLAGS}"
+  export CGO_CXXFLAGS="${CXXFLAGS}"
+  export CGO_LDFLAGS="${LDFLAGS}"
+  export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
+  go build -o nzlauncher ./cmd/nzlauncher
+}
+
+package() {
+  cd nZlauncher
+  install -Dm755 nzlauncher "$pkgdir/usr/bin/nzlauncher"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}
