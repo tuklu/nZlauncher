@@ -3,6 +3,8 @@ package intent
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -82,6 +84,7 @@ type FileQuery struct {
 
 // Files reads q as a file search.
 func Files(q string, now time.Time) FileQuery {
+	q = sizeDash.ReplaceAllString(q, "$1 - $2")
 	ws := Words(strings.NewReplacer(">", " > ", "<", " < ").Replace(q))
 	home := os.Getenv("HOME")
 	var f files.Filter
@@ -124,6 +127,16 @@ func Files(q string, now time.Time) FileQuery {
 		prev := ""
 		if i > 0 {
 			prev = ws[i-1].Canon
+		}
+
+		if kind, lo, hi, span, n := rangeAt(ws, i, now); n > 0 {
+			if kind == "size" {
+				f.MinSize, f.MaxSize, hasSize = lo, hi, true
+			} else {
+				f.After, f.Before, hasTime = span.From, span.To, true
+			}
+			i += n - 1
+			continue
 		}
 
 		switch w {
@@ -286,6 +299,102 @@ func Files(q string, now time.Time) FileQuery {
 	sure := plural && hasKind || signals >= 2 && (hasKind || hasFilesWord || hasDir || hasTime && hasSize) ||
 		placed && len(f.Terms) > 0 // "invoice in documents"
 	return FileQuery{Filter: f, Sure: sure}
+}
+
+// sizeDash splits "1-5mb" and "1mb-5mb" for the range reader; a date like
+// 2026-10-01 has no unit after its digits and stays whole.
+var sizeDash = regexp.MustCompile(`(\d(?:[a-zA-Z]+)?)-(\d+(?:\.\d+)?[a-zA-Z]+)\b`)
+
+// rangeSeps join the two ends of a range; "and" only after "between".
+func rangeSep(w string, between bool) bool {
+	switch w {
+	case "to", "-", "until", "till", "through", "thru":
+		return true
+	case "and":
+		return between
+	}
+	return false
+}
+
+// rangeAt reads a range at ws[i:]: sizes ("between 1mb and 5mb", "1 to 5 mb",
+// "1-5mb") or dates ("from june to august", "between march and may 2025",
+// "2024 to 2025"). kind is "size" or "date"; n is 0 when there is none.
+func rangeAt(ws []Word, i int, now time.Time) (kind string, lo, hi int64, span Span, n int) {
+	j, between := i, false
+	if c := ws[j].Canon; c == "between" || c == "from" {
+		between, j = c == "between", j+1
+	}
+	if j >= len(ws) {
+		return "", 0, 0, Span{}, 0
+	}
+
+	// sizes; the left end may borrow the right end's unit: "1 to 5 mb"
+	left, ln := Size(ws, j, true)
+	bare := -1.0
+	if ln == 0 {
+		if v, err := strconv.ParseFloat(ws[j].Canon, 64); err == nil {
+			bare, ln = v, 1
+		}
+	}
+	if ln > 0 && j+ln < len(ws) && rangeSep(ws[j+ln].Canon, between) {
+		k := j + ln + 1
+		if right, rn := Size(ws, k, true); rn > 0 {
+			if bare >= 0 {
+				left = int64(bare * float64(sizeUnitAt(ws, k)))
+			}
+			return "size", left, right, Span{}, k + rn - i
+		}
+	}
+
+	// dates
+	from, ln := dateAt(ws, j, now)
+	if ln == 0 || j+ln >= len(ws) || !rangeSep(ws[j+ln].Canon, between) {
+		return "", 0, 0, Span{}, 0
+	}
+	k := j + ln + 1
+	to, rn := dateAt(ws, k, now)
+	if rn == 0 {
+		return "", 0, 0, Span{}, 0
+	}
+	// "between march and may 2025": the year said once is both ends'
+	if m, isMonth := monthOf(ws[j].Canon); isMonth && ln == 1 && rn == 2 {
+		y := to.From.Year()
+		if m > to.From.Month() {
+			y--
+		}
+		from.From = time.Date(y, m, 1, 0, 0, 0, 0, now.Location())
+	}
+	// an open right end ("to today") runs up to now
+	return "date", 0, 0, Span{from.From, to.To}, k + rn - i
+}
+
+// dateAt is a moment or period at ws[i:], a bare year included.
+func dateAt(ws []Word, i int, now time.Time) (Span, int) {
+	if i >= len(ws) {
+		return Span{}, 0
+	}
+	if span, n := When(ws, i, now); n > 0 {
+		return span, n
+	}
+	if span, ok := Year(ws[i].Canon, now); ok {
+		return span, 1
+	}
+	return Span{}, 0
+}
+
+// sizeUnitAt is the unit of the size at ws[k:], in bytes.
+func sizeUnitAt(ws []Word, k int) int64 {
+	_, unit, _ := splitNumber(ws[k].Canon)
+	if unit == "" && k+1 < len(ws) {
+		unit = ws[k+1].Canon
+	}
+	if unit == "m" {
+		return 1 << 20
+	}
+	if n, ok := sizeUnits[unit]; ok {
+		return n
+	}
+	return 1
 }
 
 func nextIsSize(ws []Word, i int) bool {

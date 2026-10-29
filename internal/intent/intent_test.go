@@ -88,6 +88,14 @@ func TestFiles(t *testing.T) {
 		{q: "configs in ~/Code/MyApp", sure: true, ext: "toml", dir: "Code/MyApp"},
 		{q: "latest screenshot", sure: true, ext: "png", dir: "Pictures/Screenshots"},
 
+		{q: "pdfs between 1mb and 5mb", sure: true, ext: "pdf", minSize: 1 << 20, maxSize: 5 << 20},
+		{q: "videos 1-5gb", sure: true, ext: "mp4", minSize: 1 << 30, maxSize: 5 << 30},
+		{q: "images 200kb-2mb", sure: true, ext: "png", minSize: 200 << 10, maxSize: 2 << 20},
+		{q: "pdfs 1 to 5 mb", sure: true, ext: "pdf", minSize: 1 << 20, maxSize: 5 << 20},
+		{q: "pdfs from june to august", sure: true, ext: "pdf", after: date(2026, 6, 1), before: date(2026, 9, 1)},
+		{q: "pdfs between march and may 2025", sure: true, ext: "pdf", after: date(2025, 3, 1), before: date(2025, 6, 1)},
+		{q: "pdfs from 2024 to 2025", sure: true, ext: "pdf", after: date(2024, 1, 1), before: date(2026, 1, 1)},
+		{q: "report pdf 2026-10-01", sure: true, terms: []string{"report"}, ext: "pdf", after: date(2026, 10, 1), before: date(2026, 10, 2)},
 		{q: "screenshot", sure: false, ext: "png"}, // the capture action
 		{q: "firefox", sure: false, terms: []string{"firefox"}},
 		{q: "find invoice", sure: false, terms: []string{"invoice"}},
