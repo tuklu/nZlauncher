@@ -86,13 +86,19 @@ func conversion(q string) (n float64, from, to string, ok bool) {
 	}
 	rest := words[used:]
 	// "44 degrees", "44°c": into the other temperature unit
+	// "44 degrees in fahrenheit" is from the other unit; "44 degrees" alone
+	// is the local unit, to the other
+	if from == bareDegrees {
+		from = localTemperature()
+		if len(rest) == 2 && conversionWords[rest[0]] {
+			if to := unitWord(rest[1]); units[to].kind == "temp" {
+				return n, otherTemperature(units[to].name), to, true
+			}
+		}
+	}
 	saysDegrees := used > 1 || strings.ContainsRune(words[0], '°') // not a bare "44c"
 	if len(rest) == 0 && units[from].kind == "temp" && saysDegrees {
-		to := "c"
-		if units[from].name == "°C" {
-			to = "f"
-		}
-		return n, from, to, true
+		return n, from, otherTemperature(units[from].name), true
 	}
 	// "in degrees fahrenheit", "to ° f", "to nautical miles"
 	if len(rest) == 3 && conversionWords[rest[0]] && (degreeWords[rest[1]] || rest[1] == "nautical") {
@@ -154,7 +160,7 @@ func amount(words []string) (n float64, unit string, used int) {
 	if len(words) > used && degreeWords[words[used]] {
 		used++
 		if len(words) == used || conversionWords[words[used]] {
-			return v, localTemperature(), used // "44 degrees in fahrenheit": the local unit unless said
+			return v, bareDegrees, used // which unit depends on the target, see conversion
 		}
 	}
 	if len(words) > used {
@@ -169,6 +175,17 @@ func amount(words []string) (n float64, unit string, used int) {
 		return v, unitWord(u), used + 1
 	}
 	return v, "", used
+}
+
+// bareDegrees stands for "degrees" with no unit until the target is known.
+const bareDegrees = "degrees?"
+
+// otherTemperature is the unit to convert to from one of °C and °F.
+func otherTemperature(name string) string {
+	if name == "°C" {
+		return "f"
+	}
+	return "c"
 }
 
 var degreeWords = map[string]bool{"degree": true, "degrees": true, "deg": true, "°": true}

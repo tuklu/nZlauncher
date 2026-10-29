@@ -129,12 +129,15 @@ func TestDates(t *testing.T) {
 		"what day is 2026-12-25":  "Friday, 25 December 2026",
 		"2026-12-25":              "Friday, 25 December 2026",
 		"week number":             "Week 44",
-		"1761750000":              "2025-10-29 20:30:00",
 	}
 	for q, want := range cases {
 		if got := answer(t, q).Name; got != want {
 			t.Errorf("%q: got %q, want %q", q, got, want)
 		}
+	}
+	// a timestamp shows in local time, whatever zone the machine is in
+	if got, want := answer(t, "1761750000").Name, time.Unix(1761750000, 0).Format("2006-01-02 15:04:05"); got != want {
+		t.Errorf("timestamp: got %q, want %q", got, want)
 	}
 	for _, q := range []string{"9876543210", "christmas", "days"} {
 		if got := For(q, now, all); len(got) != 0 {
