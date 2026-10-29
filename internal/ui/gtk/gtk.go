@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -32,7 +33,10 @@ func Run(initial, mode string, resident bool) error {
 	app := gtk.NewApplication(identity.AppID, gio.ApplicationNonUnique)
 	var picked string // one-shot face: command to run once the window is gone
 	app.ConnectActivate(func() {
+		settings, _ := config.LoadSettings()
+		bell := setupErrorSound(settings.ErrorSound)
 		f := buildWindow(app, mode, resident, &picked)
+		f.bell = bell
 		f.show(initial, os.Getenv("NZ_FOCUSED"))
 		if resident {
 			app.Hold()
@@ -72,8 +76,9 @@ window.nz {
   border-radius: 10px;
   margin: 1px 4px;
 }
+/* not @accent_bg_color: some GTK and theme mixes leave it invisible */
 .nz-list row:selected {
-  background: alpha(@accent_bg_color, 0.85);
+  background: alpha(currentColor, 0.16);
 }
 .nz-name {
   font-size: 14px;
@@ -96,6 +101,7 @@ window.nz {
 
 // face is the one window, reused for every show in resident mode.
 type face struct {
+	bell    func() // plays the error sound; nil when off or left to GTK
 	win     *gtk.ApplicationWindow
 	entry   *gtk.SearchEntry
 	refresh func()
@@ -105,11 +111,12 @@ type face struct {
 func (f *face) show(q, focused string) {
 	f.focused = focused
 	f.entry.SetText(q)
-	f.entry.SetPosition(-1)
 	f.refresh()
 	f.win.SetVisible(true)
 	f.win.Present()
+	// focus selects the text; a prefilled query is to type on, not replace
 	f.entry.GrabFocus()
+	f.entry.SetPosition(-1)
 }
 
 func (f *face) toggle(q, focused string) {
@@ -284,8 +291,11 @@ func buildWindow(app *gtk.Application, mode string, resident bool, picked *strin
 		}
 		if idx >= 0 && idx < len(rows) {
 			list.SelectRow(rows[idx])
+			// focusing the row scrolls it into view; focusing the entry
+			// again selects its text, so put the cursor back at the end
 			rows[idx].GrabFocus()
 			entry.GrabFocus()
+			entry.SetPosition(-1)
 		}
 	}
 
@@ -323,6 +333,10 @@ func buildWindow(app *gtk.Application, mode string, resident bool, picked *strin
 		case gdk.KEY_Up:
 			move(-1)
 			return true
+		case gdk.KEY_BackSpace:
+			if entry.Text() == "" && f.bell != nil {
+				f.bell()
+			}
 		}
 		return false
 	})
@@ -413,4 +427,29 @@ func isImage(path string) bool {
 		return true
 	}
 	return false
+}
+
+// setupErrorSound turns GTK's own bell off unless "system" asks for it, and
+// returns a player for a sound file.
+func setupErrorSound(sound string) func() {
+	gtk.SettingsGetDefault().SetObjectProperty("gtk-error-bell", sound == "system")
+	if sound == "" || sound == "off" || sound == "system" {
+		return nil
+	}
+	path := config.ExpandHome(sound)
+	for _, player := range []string{"pw-play", "paplay", "canberra-gtk-play"} {
+		if bin, err := exec.LookPath(player); err == nil {
+			args := []string{path}
+			if player == "canberra-gtk-play" {
+				args = []string{"-f", path}
+			}
+			return func() {
+				cmd := exec.Command(bin, args...)
+				if cmd.Start() == nil {
+					go cmd.Wait() // reap it
+				}
+			}
+		}
+	}
+	return nil
 }

@@ -22,6 +22,8 @@ type Settings struct {
 	Interface   string `toml:"interface"`
 	GtkMode     string `toml:"gtk_mode"`
 	IconLibrary string `toml:"icon_library"`
+	// what Backspace on an empty box sounds like: "off", "system" or a file
+	ErrorSound string `toml:"error_sound"`
 
 	Wallpaper struct {
 		Dir string `toml:"dir"`

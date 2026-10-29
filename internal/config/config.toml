@@ -12,6 +12,10 @@
 # TUI app glyphs: icons/<name>.toml in this directory.
 # icon_library = "nerd"
 
+# What Backspace on an empty box (and other dead keys) sounds like:
+# "off", "system" for the desktop's bell, or a sound file to play.
+# error_sound = "off"
+
 [wallpaper]
 # Images the `wallpaper` prefix lists, and the command that sets one (the
 # image path is appended).

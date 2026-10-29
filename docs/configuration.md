@@ -23,6 +23,7 @@ commented out and showing its default, so it doubles as the reference.
 interface = "tui"       # face `nzlauncher bar` opens: tui | gtk
 gtk_mode = "overlay"    # GTK face: overlay | window
 icon_library = "nerd"   # TUI glyphs: icons/<name>.toml
+error_sound = "off"     # Backspace on an empty box: off | system | a sound file
 
 [wallpaper]
 dir = "~/Pictures/Wallpapers"
@@ -37,6 +38,9 @@ emoji = false
 [fallbacks]             # what an unmatched query turns into
 run = false             # calc, url, run, search
 ```
+
+`error_sound` is off by default. `"system"` lets GTK ring the desktop's
+bell, a path plays that file with pw-play, paplay or canberra-gtk-play.
 
 `gtk_mode = "overlay"` is a layer-shell surface above everything, including
 fullscreen windows; compositor layer rules apply to it. `"window"` is a
