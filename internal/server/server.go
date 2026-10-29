@@ -155,3 +155,50 @@ func Ask(req Request) (Response, error) {
 	}
 	return resp, nil
 }
+
+// FaceSocketPath is where a resident GTK face listens for the bar.
+func FaceSocketPath() string {
+	return filepath.Join(filepath.Dir(SocketPath()), "nzlauncher-gtk.sock")
+}
+
+// ToggleFace asks a resident GTK face to show (with this query and focus
+// context) or hide. It fails fast when no face is running.
+func ToggleFace(q, focused string) error {
+	conn, err := net.DialTimeout("unix", FaceSocketPath(), 50*time.Millisecond)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(2 * time.Second))
+	if err := json.NewEncoder(conn).Encode(Request{Op: "toggle", Q: q, Focused: focused}); err != nil {
+		return err
+	}
+	var resp Response
+	if err := json.NewDecoder(conn).Decode(&resp); err != nil {
+		return err
+	}
+	if !resp.OK {
+		return errors.New(resp.Error)
+	}
+	return nil
+}
+
+// ListenFace binds the face socket, replacing a stale one. It refuses when a
+// live face already owns it.
+func ListenFace() (net.Listener, error) {
+	path := FaceSocketPath()
+	if conn, err := net.DialTimeout("unix", path, 100*time.Millisecond); err == nil {
+		conn.Close()
+		return nil, errors.New("a resident face already runs on " + path)
+	}
+	os.Remove(path)
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		ln.Close()
+		return nil, err
+	}
+	return ln, nil
+}

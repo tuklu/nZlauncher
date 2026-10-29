@@ -15,7 +15,13 @@ func main() {
 	config.Migrate()
 	// a broken catalog still opens the face; the engine reports the error in place
 	catalog, _ := config.Load()
-	if err := gtk.Run(strings.Join(os.Args[1:], " "), catalog.Settings.GTKMode()); err != nil {
+	args := os.Args[1:]
+	// --resident: keep running hidden between uses, the bar shows it again
+	resident := len(args) > 0 && args[0] == "--resident"
+	if resident {
+		args = args[1:]
+	}
+	if err := gtk.Run(strings.Join(args, " "), catalog.Settings.GTKMode(), resident); err != nil {
 		fmt.Fprintln(os.Stderr, "nzlauncher-gtk:", err)
 		os.Exit(1)
 	}

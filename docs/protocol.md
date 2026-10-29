@@ -50,3 +50,16 @@ the next query. The built-in faces do this themselves.
 
 `nzlauncher query <text>` asks the daemon when it runs and falls back to
 running the engine in-process, printing `id<TAB>cmd<TAB>display` lines.
+
+## The GTK face
+
+With `interface = "gtk"`, the first `nzlauncher bar` starts a resident
+`nzlauncher-gtk --resident`. It hides instead of quitting, and every later
+press only toggles it, so it shows in a few tens of milliseconds. It listens
+on `$XDG_RUNTIME_DIR/nzlauncher-gtk.sock` (mode `0600`) for one request:
+
+```json
+{"op": "toggle", "q": "prefilled query", "focused": "firefox"}
+```
+
+It shows with that query when hidden and hides when shown.

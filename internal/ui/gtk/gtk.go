@@ -3,11 +3,14 @@
 package gtk
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 
 	layershell "github.com/diamondburned/gotk4-layer-shell/pkg/gtk4layershell"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/tuklu/nZlauncher/internal/action"
@@ -15,13 +18,25 @@ import (
 	"github.com/tuklu/nZlauncher/internal/engine"
 	"github.com/tuklu/nZlauncher/internal/identity"
 	"github.com/tuklu/nZlauncher/internal/learn"
+	"github.com/tuklu/nZlauncher/internal/server"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
-func Run(initial, mode string) error {
-	app := gtk.NewApplication(identity.AppID, gio.ApplicationFlagsNone)
-	var picked string // command to run once the window is gone
-	app.ConnectActivate(func() { buildWindow(app, initial, mode, &picked) })
+// Run opens the face. A resident face stays alive hidden after a pick or
+// Escape, and the bar shows it again through server.ToggleFace.
+func Run(initial, mode string, resident bool) error {
+	// no D-Bus name: the face socket already keeps one face per session, and
+	// registering one only costs startup time
+	app := gtk.NewApplication(identity.AppID, gio.ApplicationNonUnique)
+	var picked string // one-shot face: command to run once the window is gone
+	app.ConnectActivate(func() {
+		f := buildWindow(app, mode, resident, &picked)
+		f.show(initial, os.Getenv("NZ_FOCUSED"))
+		if resident {
+			app.Hold()
+			go serveFace(f)
+		}
+	})
 	if code := app.Run(nil); code > 0 {
 		os.Exit(code)
 	}
@@ -67,7 +82,59 @@ window.nz {
 }
 `
 
-func buildWindow(app *gtk.Application, initial, mode string, picked *string) {
+// face is the one window, reused for every show in resident mode.
+type face struct {
+	win     *gtk.ApplicationWindow
+	entry   *gtk.SearchEntry
+	refresh func()
+	focused string // class of the window the user came from
+}
+
+func (f *face) show(q, focused string) {
+	f.focused = focused
+	f.entry.SetText(q)
+	f.entry.SetPosition(-1)
+	f.refresh()
+	f.win.SetVisible(true)
+	f.win.Present()
+	f.entry.GrabFocus()
+}
+
+func (f *face) toggle(q, focused string) {
+	if f.win.IsVisible() {
+		f.win.SetVisible(false)
+		return
+	}
+	f.show(q, focused)
+}
+
+// serveFace answers the bar's toggle requests; GTK is only touched from its
+// own thread, so each request is handed over with IdleAdd.
+func serveFace(f *face) {
+	ln, err := server.ListenFace()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "nzlauncher-gtk:", err)
+		return
+	}
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		go func() {
+			defer conn.Close()
+			var req server.Request
+			if err := json.NewDecoder(conn).Decode(&req); err != nil || req.Op != "toggle" {
+				json.NewEncoder(conn).Encode(server.Response{Error: "want {\"op\":\"toggle\"}"})
+				return
+			}
+			glib.IdleAdd(func() { f.toggle(req.Q, req.Focused) })
+			json.NewEncoder(conn).Encode(server.Response{OK: true})
+		}()
+	}
+}
+
+func buildWindow(app *gtk.Application, mode string, resident bool, picked *string) *face {
 	win := gtk.NewApplicationWindow(app)
 	win.AddCSSClass("nz")
 	win.SetDefaultSize(760, 500)
@@ -109,14 +176,35 @@ func buildWindow(app *gtk.Application, initial, mode string, picked *string) {
 
 	var actions []action.Action
 	var rows []*gtk.ListBoxRow
+	f := &face{win: win, entry: entry}
+
+	// resident: hide instead of closing, so the next show is instant
+	dismiss := func() {
+		if resident {
+			win.SetVisible(false)
+			return
+		}
+		win.Close()
+	}
+	if resident {
+		win.ConnectCloseRequest(func() bool {
+			win.SetVisible(false)
+			return true
+		})
+	}
 
 	execute := func(idx int) {
 		if idx >= 0 && idx < len(actions) {
 			a := actions[idx]
-			learn.Record(a.ID, entry.Text())
+			learn.RecordFor(a.ID, entry.Text(), f.focused)
+			if resident {
+				win.SetVisible(false)
+				shell.LaunchAfterHide(a.Cmd)
+				return
+			}
 			*picked = a.Cmd
 		}
-		win.Close()
+		dismiss()
 	}
 
 	refresh := func() {
@@ -125,7 +213,7 @@ func buildWindow(app *gtk.Application, initial, mode string, picked *string) {
 		}
 		rows = rows[:0]
 
-		acts, err := engine.Query(entry.Text())
+		acts, err := engine.QueryFor(entry.Text(), f.focused)
 		if err != nil {
 			acts = nil
 		}
@@ -196,7 +284,7 @@ func buildWindow(app *gtk.Application, initial, mode string, picked *string) {
 	keys.ConnectKeyPressed(func(keyval, _ uint, _ gdk.ModifierType) bool {
 		switch keyval {
 		case gdk.KEY_Escape:
-			win.Close()
+			dismiss()
 			return true
 		case gdk.KEY_Down:
 			move(1)
@@ -209,9 +297,6 @@ func buildWindow(app *gtk.Application, initial, mode string, picked *string) {
 	})
 	win.AddController(keys)
 
-	entry.SetText(initial)
-	entry.SetPosition(-1)
-	refresh()
-	entry.GrabFocus()
-	win.SetVisible(true)
+	f.refresh = refresh
+	return f
 }

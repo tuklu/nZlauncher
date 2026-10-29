@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -45,13 +46,39 @@ const (
 
 // The launcher must be gone before the action runs, or screenshots, OCR,
 // and pickers capture it and keyboard-driven actions hit it instead of
-// the window underneath. Hands off to a detached `nz after-close`.
+// the window underneath. Hands off to a detached `nzlauncher after-close`,
+// which waits for this process to exit.
 func LaunchAfterClose(command string) error {
-	self, err := os.Executable()
+	return launchAfter(os.Getpid(), command)
+}
+
+// LaunchAfterHide is for a face that stays running: wait only for its
+// surface to leave the screen.
+func LaunchAfterHide(command string) error {
+	return launchAfter(0, command)
+}
+
+func launchAfter(pid int, command string) error {
+	cli, err := CLI()
 	if err != nil {
 		return Launch(command)
 	}
-	return StartDetached(exec.Command(self, "after-close", strconv.Itoa(os.Getpid()), command))
+	return StartDetached(exec.Command(cli, "after-close", strconv.Itoa(pid), command))
+}
+
+// CLI is the nzlauncher binary: this one, the one beside it, or the one on
+// PATH. The GTK face is a different binary and lacks the CLI's commands.
+func CLI() (string, error) {
+	if self, err := os.Executable(); err == nil {
+		if filepath.Base(self) == "nzlauncher" {
+			return self, nil
+		}
+		sibling := filepath.Join(filepath.Dir(self), "nzlauncher")
+		if _, err := os.Stat(sibling); err == nil {
+			return sibling, nil
+		}
+	}
+	return exec.LookPath("nzlauncher")
 }
 
 // RunAfterClose is the `nz after-close <pid> <command>` entry point.
@@ -65,7 +92,7 @@ func RunAfterClose(args []string) error {
 	}
 
 	deadline := time.Now().Add(closeWaitLimit)
-	for time.Now().Before(deadline) && processAlive(pid) {
+	for pid > 0 && time.Now().Before(deadline) && processAlive(pid) {
 		time.Sleep(closePoll)
 	}
 	for time.Now().Before(deadline) && launcherOnScreen() {

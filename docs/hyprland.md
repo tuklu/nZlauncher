@@ -32,6 +32,13 @@ word so you can start typing a filter right away.
 Add a `desc` to your binds. The `keys` provider shows it in place of
 the raw command.
 
+## How fast it opens
+
+The GTK face stays resident: the first press after login starts it (well
+under a second), every press after that only shows or hides the existing
+window. The TUI face starts a fresh ghostty window each time, so it opens as
+fast as ghostty starts.
+
 ## Window rules
 
 The TUI face is a ghostty window with class `dev.tuklu.nzlauncher.tui`. `nzlauncher pick`

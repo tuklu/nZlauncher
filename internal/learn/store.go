@@ -38,13 +38,19 @@ func frecencyPath() string {
 
 // Record appends one launch to the event log, tagged with current context.
 func Record(id, query string) error {
+	return RecordFor(id, query, os.Getenv("NZ_FOCUSED"))
+}
+
+// RecordFor is Record with the window the user came from given explicitly,
+// for a face that outlives one invocation.
+func RecordFor(id, query, focusedClass string) error {
 	e := Event{
 		ID:      id,
 		TS:      time.Now().Unix(),
 		Query:   query,
 		Battery: sysinfo.OnBattery(),
 		SSID:    sysinfo.CurrentSSID(),
-		Focused: os.Getenv("NZ_FOCUSED"),
+		Focused: focusedClass,
 	}
 	data, err := json.Marshal(e)
 	if err != nil {
