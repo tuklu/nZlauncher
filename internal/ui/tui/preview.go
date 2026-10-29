@@ -21,7 +21,7 @@ import (
 // The preview pane opens beside the list when the terminal is this wide and
 // the selected result has a file to show.
 const (
-	previewMinWidth = 80
+	previewMinWidth = 72
 	previewBytes    = 4096
 )
 

@@ -155,7 +155,7 @@ func (m *tuiModel) View() string {
 		if path := m.actions[m.cursor].Preview; m.preview.path != path {
 			m.preview = loadPreview(path)
 		}
-		w = w * 55 / 100
+		w = w * 55 / 100 // the list keeps a little more than half
 	}
 	var list strings.Builder
 
@@ -167,7 +167,9 @@ func (m *tuiModel) View() string {
 			icon = " "
 		}
 		name := a.Name
-		badge := a.Badge()
+		// the name wins the room: a long hint (a deep folder) gives way
+		// from its left, keeping where it ends and the age and size
+		badge := shortenLeft(a.Badge(), max(w*2/5, 12))
 
 		// room: marker(3) + icon col + gaps + badge + right margin
 		avail := w - lipgloss.Width(icon) - lipgloss.Width(badge) - 9
@@ -217,4 +219,16 @@ func (m *tuiModel) View() string {
 	}
 	b.WriteString("\n" + m.st.footer.Render(left+strings.Repeat(" ", fpad)+hints))
 	return b.String()
+}
+
+// shortenLeft keeps the end of s within width: "…/Screenshots · 4d · 545 KiB".
+func shortenLeft(s string, width int) string {
+	if lipgloss.Width(s) <= width {
+		return s
+	}
+	r := []rune(s)
+	for len(r) > 0 && lipgloss.Width(string(r))+1 > width {
+		r = r[1:]
+	}
+	return "…" + string(r)
 }
