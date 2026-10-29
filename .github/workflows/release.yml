@@ -43,8 +43,6 @@ jobs:
           go build -ldflags "-s -w" -o nzlauncher-gtk-linux-amd64 ./cmd/nzlauncher-gtk
 
       # nzlauncher-bin PKGBUILD with this version and real checksums, ready
-      # to copy to the AUR
-      # nzlauncher-bin PKGBUILD with this version and real checksums, ready
       # to copy to the AUR. The files are listed in the order of its source=().
       - name: package files
         run: |
@@ -76,3 +74,59 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" $files --generate-notes
           fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkgbuild
+          path: PKGBUILD
+
+  # nzlauncher-bin on the AUR follows each tagged release. A manual rebuild
+  # of an old tag's files leaves the AUR alone.
+  aur:
+    needs: release
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # makepkg writes .SRCINFO, and only Arch has makepkg
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pkgbuild
+
+      - name: tools
+        run: pacman -Syu --noconfirm --needed git openssh
+
+      # ssh in a container looks in the passwd home, not $HOME, so the key
+      # and the pinned host keys are named explicitly
+      - name: ssh
+        env:
+          AUR_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          AUR_KNOWN_HOSTS: ${{ vars.AUR_KNOWN_HOSTS }}
+        run: |
+          install -dm700 /tmp/aur-ssh
+          printf '%s\n' "$AUR_KEY" > /tmp/aur-ssh/key
+          printf '%s\n' "$AUR_KNOWN_HOSTS" > /tmp/aur-ssh/known_hosts
+          chmod 600 /tmp/aur-ssh/key
+          echo "GIT_SSH_COMMAND=ssh -i /tmp/aur-ssh/key -o IdentitiesOnly=yes -o UserKnownHostsFile=/tmp/aur-ssh/known_hosts -o StrictHostKeyChecking=yes" >> "$GITHUB_ENV"
+
+      - name: push
+        run: |
+          git config --global --add safe.directory '*'
+          git clone ssh://aur@aur.archlinux.org/nzlauncher-bin.git aur
+          cp PKGBUILD aur/
+          # makepkg will not run as root
+          useradd -m builder
+          chown -R builder aur
+          (cd aur && su builder -c 'makepkg --printsrcinfo' > .SRCINFO)
+          cd aur
+          git add PKGBUILD .SRCINFO
+          if git diff --cached --quiet; then
+            echo "AUR already has ${GITHUB_REF_NAME}"
+            exit 0
+          fi
+          git -c user.name="Jisnu Kalita" -c user.email="ssh@tuklu.dev" commit -m "Update to ${GITHUB_REF_NAME#v}"
+          git push origin HEAD:master
+
+      - name: clean up the key
+        if: always()
+        run: rm -rf /tmp/aur-ssh
