@@ -3,6 +3,8 @@ package engine
 import (
 	"strings"
 
+	"github.com/tuklu/nZlauncher/internal/intent"
+
 	"github.com/tuklu/nZlauncher/internal/action"
 )
 
@@ -12,6 +14,7 @@ const (
 	scoreNameSub     = 70
 	scoreKeyword     = 50
 	scoreNameFuzzy   = 40
+	scoreNameTypo    = 30
 	scoreKeywordFzy  = 25
 	scoreGroupPrefix = 20
 	frecencyCap      = 50
@@ -35,6 +38,8 @@ func matchScore(a action.Action, tokens []string) int {
 			best = scoreNameSub
 		case subsequence(name, t):
 			best = scoreNameFuzzy
+		case typoPrefix(words, t):
+			best = scoreNameTypo
 		}
 
 		if best < scoreKeyword {
@@ -63,6 +68,22 @@ func wordPrefix(words []string, t string) bool {
 	for _, w := range words {
 		if strings.HasPrefix(w, t) {
 			return true
+		}
+	}
+	return false
+}
+
+// typoPrefix: one slip in what was typed so far of a word, "fierf" for
+// "firefox". Only from five letters on: "fire" is one slip from "file".
+func typoPrefix(words []string, t string) bool {
+	if len(t) < 5 {
+		return false
+	}
+	for _, w := range words {
+		for _, n := range []int{len(t) - 1, len(t), len(t) + 1} {
+			if n <= len(w) && intent.Near(w[:n], t) {
+				return true
+			}
 		}
 	}
 	return false

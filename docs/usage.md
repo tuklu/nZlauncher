@@ -47,7 +47,8 @@ it's padded out with defaults.
 
 Typing ranks the catalog, installed apps and open windows together.
 Every word you type has to match somewhere (name, keywords or group),
-so `lib cal` finds LibreOffice Calc.
+so `lib cal` finds LibreOffice Calc. One typo is forgiven from five
+letters on, so `chromuim` still finds Chromium.
 
 Apps are also searchable by what they are, not only their name.
 Generic names, desktop keywords and categories are all indexed, so
@@ -68,14 +69,14 @@ The first word can send the query to one provider:
 | `wifi`, `net` | known networks to connect or disconnect, on/off toggles |
 | `bt`, `bluetooth` | paired devices and their connection state, power toggle |
 | `audio`, `output` | output devices, current one marked |
-| `vol 40`, `volume` | set volume directly, presets, mute |
-| `bright 60`, `brightness` | backlight direct or presets |
+| `vol 40`, `vol +10`, `volume` | set volume directly or by a step, presets, mute |
+| `bright 60`, `bright -10`, `brightness` | backlight directly or by a step, presets |
 | `ws 3`, `ws move 3` | jump to a workspace, or move the active window there |
 | `monitor`, `display` | hyprmoncfg profiles and auto-detect |
 | `kill chrom` | your processes sorted by CPU, pick to kill |
 | `clip` | clipboard history, pick to copy again |
 | `emoji fire` | 1,784 emoji, pick to copy |
-| `file notes`, `f` | file search with fd, recent files when empty |
+| `file notes`, `f` | file search, reads the rest as a sentence (see below), recent files when empty |
 | `keys vol` | every Hyprland keybind, pick to run it |
 | `wallpaper`, `wp` | images in the `wallpaper_dir` setting, pick to set |
 | `transcode` | pick a media file, then a format and resolution |
@@ -106,21 +107,53 @@ Two kinds can't be resolved, and you get a notification if you pick one:
 
 ## Sentences
 
-A small fixed grammar, no AI involved. Filler words like `the`, `to`,
-`my`, `a` and `please` are dropped, so "turn off the wifi" and "turn
-wifi off" do the same thing.
+A fixed grammar, no AI involved, so the same words always do the same
+thing in well under a millisecond. Word order doesn't matter, filler
+words like `the`, `to`, `my` and `please` are dropped, common synonyms
+mean the same (`disable` is `off`, `launch` is `open`, `louder` is
+`volume up`), and a typo in a word from five letters on is fixed
+(`bluetoth`, `yesterdy`).
 
 | Verb | Example |
 |---|---|
-| `set`, `change`, `make` | `set volume 40`, `set wallpaper to beach`, `set brightness 60` |
+| `set`, `change`, `make` | `set volume to 40%`, `set wallpaper to beach`, `set brightness 60` |
+| volume, brightness | `volume up`, `volume down 10`, `brightness 40 percent`, `louder`, `dimmer`, `mute` |
 | `open`, `launch`, `start` | `open thunderbird`, `open github.com` |
-| `turn on`, `turn off` | `turn off wifi`, `turn bluetooth on`, `turn on nightlight` |
+| on and off | `wifi off`, `turn bluetooth on`, `disable bluetooth`, `enable nightlight` |
 | `connect`, `disconnect` | `connect mx master`, `disconnect home-5g` |
 | `switch`, `go`, `focus` | `switch to workspace 3`, `go to firefox` |
 | `find` | `find catalog` (file search) |
 | `search`, `google` | `search rust traits` |
-| `kill`, `stop` | `kill chrome` |
-| `remind`, `remember` | `remind me in 30 to check the oven` |
+| `kill`, `stop`, `quit` | `kill chrome` |
+| `remind`, `timer` | `remind me in 20 minutes to stretch`, `remind me to call mum in 1h`, `timer 5m`, `set a timer for half an hour` |
+
+### Files
+
+A sentence about files becomes a search of the file index, no syntax
+to remember:
+
+- `pdfs from last week`, `screenshots today`, `invoice docs bigger than 5mb`
+- `images in downloads`, `go files in projects`, `big videos`, `small pngs from october`
+- `report pdf since monday`, `music older than 1 year`, `tax pdf from 2025`, `recent files`
+
+What it understands:
+
+| Kind | Words |
+|---|---|
+| type | `pdf`, `docs`, `images`/`photos`/`pictures`, `screenshots` (also only in ~/Pictures/Screenshots), `videos`, `music`/`songs`/`audio`, `spreadsheets`, `slides`, `archives`, `ebooks`, `code`, `configs`, `fonts`, or an extension: `pngs`, `.go`, `go files` |
+| when | `today`, `yesterday`, `this week`, `last month`, `past 3 days`, `2 weeks ago`, `monday`, `october`, `2026-10-01`, `in 2025`, `since ...`, `before ...`, `older than 1 year`, `newer than 3 days`, `recent` |
+| size | `bigger than 5mb`, `over 1gb`, `> 200kb`, `under 1mb`, `big` (100 MB+), `huge` (1 GB+), `small` (under 1 MB) |
+| where | `in downloads`, `on desktop`, `in documents`, `in <any folder in home>`, `in ~/some/path` |
+
+Every other word has to appear in the file name. Results come newest
+first, with files in hidden folders after visible ones. "Last week"
+reaches back to the start of the previous week, so it covers both
+readings of it.
+
+A type word on its own only counts in the plural: `screenshot` still
+takes a screenshot, `screenshots` lists them. An app whose name starts
+with what you typed stays on top, so an app called Docs is still the
+first hit for `docs`.
 
 ## Fallbacks
 

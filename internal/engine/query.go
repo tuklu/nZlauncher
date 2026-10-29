@@ -9,6 +9,7 @@ import (
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/config"
+	"github.com/tuklu/nZlauncher/internal/intent"
 	"github.com/tuklu/nZlauncher/internal/learn"
 	"github.com/tuklu/nZlauncher/internal/providers"
 )
@@ -53,7 +54,12 @@ func QueryFor(raw, focusedClass string) ([]action.Action, error) {
 	case groupNames[q]:
 		ranked = byGroup(actions, q, stats, now)
 	default:
-		if nl := nlIntent(actions, stats, ctx, q); len(nl) > 0 {
+		if fq := intent.Files(strings.TrimSpace(raw), start); fq.Sure && providers.On("files") && !filePrefixed(q) {
+			// an app called like the query still comes first: "docs" may be one
+			pool := append(actions, cache.windowList()...)
+			ranked = append(namePrefixed(rank(pool, stats, ctx, q), q), providers.FilterFiles(fq.Filter)...)
+			ranked = append(ranked, fallbacks(raw, ctx.settings)...)
+		} else if nl := nlIntent(actions, stats, ctx, q); len(nl) > 0 {
 			ranked = append(nl, fallbacks(raw, ctx.settings)...)
 		} else if provided, ok := providers.ByPrefix(strings.TrimSpace(raw)); ok {
 			ranked = append(provided, fallbacks(raw, ctx.settings)...)
@@ -173,6 +179,25 @@ func rank(actions []action.Action, stats map[string]learn.Stat, ctx queryContext
 		ranked[i] = h.action
 	}
 	return ranked
+}
+
+// "f pdfs" goes to the file provider, which reads the rest itself; with the
+// whole query here the "f" would become a name term.
+func filePrefixed(q string) bool {
+	_, isF := providers.PrefixArg(q, "f")
+	_, isFile := providers.PrefixArg(q, "file")
+	return isF || isFile
+}
+
+// namePrefixed keeps the ranked actions whose name starts with q.
+func namePrefixed(ranked []action.Action, q string) []action.Action {
+	var res []action.Action
+	for _, a := range ranked {
+		if strings.HasPrefix(strings.ToLower(a.Name), q) {
+			res = append(res, a)
+		}
+	}
+	return res
 }
 
 // Warm loads every cached source now, so a daemon's first answer is as fast

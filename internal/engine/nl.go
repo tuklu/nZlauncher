@@ -1,57 +1,63 @@
 package engine
 
 import (
+	"fmt"
+	"math"
 	"strings"
+	"time"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/intent"
 	"github.com/tuklu/nZlauncher/internal/learn"
 	"github.com/tuklu/nZlauncher/internal/providers"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
 // Natural language verb layer: deterministic grammar, no model.
-// "set wallpaper to fg1", "turn off wifi", "open chromium", "connect mx master",
-// "switch to workspace 3", "search rust traits", "find catalog".
-// Filler words vanish, the verb routes, the rest is the argument.
-
-var fillerWords = map[string]bool{
-	"the": true, "a": true, "an": true, "my": true, "please": true,
-	"to": true, "for": true, "of": true, "in": true, "me": true,
-}
-
-func isDigits(s string) bool {
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return len(s) > 0
-}
+// "set wallpaper to fg1", "wifi off", "disable bluetooth", "launch chromium",
+// "connect mx master", "go to workspace 3", "volume up 10", "louder",
+// "remind me in 20 minutes to stretch". intent.Words resolves synonyms and
+// typos; the first word routes, the rest is the argument as typed.
 
 func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryContext, q string) []action.Action {
-	var words []string
-	for _, w := range strings.Fields(q) {
-		if !fillerWords[w] {
-			words = append(words, w)
-		}
-	}
-	// "connect" alone lists what can be connected
-	if len(words) == 1 && (words[0] == "connect" || words[0] == "disconnect") {
-		words = append(words, "")
-	}
-	if len(words) < 2 {
+	all := intent.Words(q)
+	words := intent.Content(all)
+	if len(words) == 0 {
 		return nil
 	}
-	verb, rest := words[0], words[1:]
-	arg := strings.Join(rest, " ")
+	verb, rest := words[0].Canon, words[1:]
+	arg := intent.RawJoin(rest)
+
+	// a level word routes with or without "set": "volume 40%", "louder"
+	if verb == "volume" || verb == "brightness" {
+		if level := levelArg(rest); level != "" {
+			return domainProvider(verb)(level)
+		}
+	}
+	// "wifi off", "off wifi", "turn bluetooth on", "disable nightlight"
+	if state, domain, ok := toggleWords(words); ok {
+		return toggleIntent(state, domain, actions)
+	}
+	// "remind me in 20 minutes to stretch", "set a timer for 10m"
+	if verb == "remind" || verb == "set" && len(rest) > 0 && rest[0].Canon == "remind" {
+		return reminderIntent(all)
+	}
+	if len(words) == 1 && verb != "connect" && verb != "disconnect" {
+		return nil
+	}
 
 	switch verb {
-	case "set", "change", "make":
-		if fn := domainProvider(rest[0]); fn != nil {
-			return fn(strings.Join(rest[1:], " "))
+	case "set":
+		if len(rest) > 0 {
+			if fn := domainProvider(rest[0].Canon); fn != nil {
+				if level := levelArg(rest[1:]); level != "" {
+					return fn(level)
+				}
+				return fn(intent.RawJoin(rest[1:]))
+			}
 		}
 
-	case "open", "launch", "start":
+	case "open":
 		pool := keepGroups(append(actions, cache.windowList()...), "app", "window")
 		res := rank(pool, stats, ctx, arg)
 		if u, ok := urlAction(arg); ok {
@@ -59,9 +65,9 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 		}
 		return res
 
-	case "switch", "go", "goto", "focus":
-		if rest[0] == "workspace" || rest[0] == "ws" {
-			return providers.Workspace(strings.Join(rest[1:], " "))
+	case "switch", "go", "focus":
+		if rest[0].Canon == "workspace" {
+			return providers.Workspace(intent.RawJoin(rest[1:]))
 		}
 		return rank(cache.windowList(), stats, ctx, arg)
 
@@ -73,64 +79,145 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 		}
 		return res
 
-	case "turn":
-		if rest[0] == "on" || rest[0] == "off" {
-			return toggleIntent(rest[0], strings.Join(rest[1:], " "), actions)
-		}
-		if last := rest[len(rest)-1]; last == "on" || last == "off" {
-			return toggleIntent(last, strings.Join(rest[:len(rest)-1], " "), actions)
-		}
-
-	case "search", "google":
+	case "search":
 		return []action.Action{searchAction(arg, ctx.settings)}
 
 	case "find":
 		return providers.Files(arg)
 
-	case "kill", "stop":
+	case "kill":
 		return providers.Kill(arg)
-
-	case "remind", "remember":
-		if isDigits(rest[0]) {
-			mins, msg := rest[0], strings.Join(rest[1:], " ")
-			name := "Remind in " + mins + "m"
-			if msg != "" {
-				name += ": " + msg
-			}
-			return []action.Action{{ID: "remind", Name: name, Icon: "󰔛", Group: "info",
-				Cmd: "reminder " + mins + " " + shell.Quote(msg)}}
-		}
-		return []action.Action{{ID: "set-reminder", Name: "Set Reminder…", Icon: "󰔛", Group: "info",
-			Cmd: "reminder prompt"}}
 	}
 	return nil
 }
 
+// levelArg turns the words after "volume" or "brightness" into what the
+// provider takes: "40", "+10", "-5", "mute"; "" when they say no level.
+func levelArg(ws []intent.Word) string {
+	sign, amount := "", ""
+	for _, w := range ws {
+		switch c := w.Canon; {
+		case c == "up" || c == "down":
+			sign = map[string]string{"up": "+", "down": "-"}[c]
+		case c == "mute":
+			return "mute"
+		case c == "%" || c == "by" || c == "at":
+		default:
+			c = strings.TrimSuffix(c, "%")
+			if strings.HasPrefix(c, "+") || strings.HasPrefix(c, "-") {
+				sign, c = c[:1], c[1:]
+			}
+			n, ok := intent.Number(c)
+			if !ok || n > 100 || !isDigits(strings.ReplaceAll(c, ".", "")) {
+				return ""
+			}
+			amount = fmt.Sprint(int(n))
+		}
+	}
+	switch {
+	case sign != "" && amount == "":
+		return sign + "5"
+	case sign != "":
+		return sign + amount
+	}
+	return amount
+}
+
+var toggleDomains = map[string]bool{"wifi": true, "bluetooth": true}
+
+// toggleWords finds a state and what it applies to in any order. The state
+// must open or close the sentence ("on" in the middle is usually a date).
+func toggleWords(ws []intent.Word) (state, domain string, ok bool) {
+	if len(ws) < 2 {
+		return "", "", false
+	}
+	if ws[0].Canon == "turn" || ws[0].Canon == "switch" {
+		ws = ws[1:]
+	}
+	if len(ws) < 2 {
+		return "", "", false
+	}
+	first, last := ws[0].Canon, ws[len(ws)-1].Canon
+	switch {
+	case first == "on" || first == "off":
+		return first, intent.RawJoin(ws[1:]), true
+	case last == "on" || last == "off":
+		return last, intent.RawJoin(ws[:len(ws)-1]), true
+	}
+	return "", "", false
+}
+
+func reminderIntent(ws []intent.Word) []action.Action {
+	var d time.Duration
+	var msg []intent.Word
+	for i := 0; i < len(ws); i++ {
+		if got, n := intent.Duration(ws, i); n > 0 && d == 0 {
+			d = got
+			i += n - 1
+			continue
+		}
+		// a bare number is minutes, as before: "remind 10 tea"
+		if c := ws[i].Canon; d == 0 && isDigits(c) && c != "0" {
+			n, _ := intent.Number(c)
+			d = time.Duration(n) * time.Minute
+			continue
+		}
+		if c := ws[i].Canon; ws[i].Filler || c == "remind" || c == "set" || c == "about" || c == "after" || c == "that" {
+			continue
+		}
+		msg = append(msg, ws[i])
+	}
+	if d == 0 {
+		return []action.Action{{ID: "set-reminder", Name: "Set Reminder…", Icon: "󰔛", Group: "info",
+			Cmd: "reminder prompt"}}
+	}
+	mins := int(math.Ceil(d.Minutes()))
+	text := intent.RawJoin(msg)
+	name := "Remind in " + shortDuration(mins)
+	if text != "" {
+		name += ": " + text
+	}
+	return []action.Action{{ID: "remind", Name: name, Icon: "󰔛", Group: "info",
+		Hint: time.Now().Add(time.Duration(mins) * time.Minute).Format("15:04"),
+		Cmd:  fmt.Sprintf("reminder %d %s", mins, shell.Quote(text))}}
+}
+
+func shortDuration(mins int) string {
+	if mins < 60 {
+		return fmt.Sprintf("%dm", mins)
+	}
+	if mins%60 == 0 {
+		return fmt.Sprintf("%dh", mins/60)
+	}
+	return fmt.Sprintf("%dh %dm", mins/60, mins%60)
+}
+
 func domainProvider(domain string) func(string) []action.Action {
 	switch domain {
-	case "wallpaper", "background":
+	case "wallpaper":
 		return providers.Wallpaper
-	case "volume", "sound":
+	case "volume":
 		return providers.Volume
 	case "brightness":
 		return providers.Brightness
-	case "workspace", "ws":
+	case "workspace":
 		return providers.Workspace
-	case "output", "audio", "speaker":
+	case "output":
 		return providers.Audio
-	case "wifi", "network":
+	case "wifi":
 		return providers.Wifi
-	case "bluetooth", "bt":
+	case "bluetooth":
 		return providers.Bluetooth
-	case "monitor", "display":
+	case "monitor":
 		return providers.Monitor
 	}
 	return nil
 }
 
 func toggleIntent(state, domain string, actions []action.Action) []action.Action {
-	if fn := domainProvider(domain); fn != nil {
-		return keepContaining(fn(""), state)
+	canon := intent.Content(intent.Words(domain))
+	if len(canon) == 1 && toggleDomains[canon[0].Canon] {
+		return keepWord(domainProvider(canon[0].Canon)(""), state)
 	}
 	// catalog toggles: nightlight, idle, screensaver, bar...
 	var res []action.Action
@@ -164,4 +251,28 @@ func keepContaining(actions []action.Action, sub string) []action.Action {
 		}
 	}
 	return res
+}
+
+// keepWord keeps actions whose name has word as a whole word: "Wi-Fi Off"
+// for "off", not "Connect Pixel" for "on".
+func keepWord(actions []action.Action, word string) []action.Action {
+	var res []action.Action
+	for _, a := range actions {
+		for _, w := range strings.Fields(strings.ToLower(a.Name)) {
+			if w == word {
+				res = append(res, a)
+				break
+			}
+		}
+	}
+	return res
+}
+
+func isDigits(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return len(s) > 0
 }

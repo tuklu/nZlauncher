@@ -7,58 +7,100 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/files"
+	"github.com/tuklu/nZlauncher/internal/intent"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
-// file / f — fd search under home; bare query shows recently used files.
+// file / f: the file index, read as a sentence ("f pdfs from last week");
+// a bare query shows recently used files.
 func Files(q string) []action.Action {
 	if !On("files") {
 		return nil
 	}
-	if q == "" {
+	if strings.TrimSpace(q) == "" {
 		return recentFiles(15)
 	}
-	if hits, ok := files.Search(files.Filter{Terms: strings.Fields(strings.ToLower(q))}); ok {
+	return FilterFiles(intent.Files(q, time.Now()).Filter)
+}
+
+// FilterFiles answers a file query from the index, or from fd while the
+// index is still building.
+func FilterFiles(f files.Filter) []action.Action {
+	if !On("files") {
+		return nil
+	}
+	if hits, ok := files.Search(f); ok {
 		return FileActions(hits)
 	}
+	return FileActions(fdSearch(f))
+}
 
-	args := []string{"--type", "f", "--hidden", "--max-results", "40"}
-	for _, ex := range []string{
-		".git", ".cache", "go/pkg", "node_modules", ".cargo", ".rustup",
-		".npm", ".local/share", ".local/state", ".mozilla", ".gradle",
-		".java", "__pycache__", ".venv",
-	} {
+func fdSearch(f files.Filter) []files.Hit {
+	args := []string{"--type", "f", "--hidden", "--ignore-case", "--max-results", "200"}
+	for _, ex := range files.DefaultConfig().Exclude {
 		args = append(args, "--exclude", ex)
 	}
-	args = append(args, q, os.Getenv("HOME"))
+	for _, e := range f.Exts {
+		args = append(args, "--extension", e)
+	}
+	const stamp = "2006-01-02 15:04:05"
+	if !f.After.IsZero() {
+		args = append(args, "--changed-within", f.After.Format(stamp))
+	}
+	if !f.Before.IsZero() {
+		args = append(args, "--changed-before", f.Before.Format(stamp))
+	}
+	if f.MinSize > 0 {
+		args = append(args, "--size", fmt.Sprintf("+%db", f.MinSize))
+	}
+	if f.MaxSize > 0 {
+		args = append(args, "--size", fmt.Sprintf("-%db", f.MaxSize))
+	}
+	// fd takes one pattern: the first term, the rest are checked below
+	pattern := ""
+	if len(f.Terms) > 0 {
+		pattern = regexp.QuoteMeta(f.Terms[0])
+	}
+	args = append(args, pattern)
+	roots := f.InDirs
+	if len(roots) == 0 {
+		roots = []string{os.Getenv("HOME")}
+	}
+	args = append(args, roots...)
 
 	out, err := exec.Command("fd", args...).Output()
 	if err != nil {
 		return nil
 	}
-
-	paths := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
-	// shorter paths first: ~/notes.md beats a deep vendored hit
-	sort.SliceStable(paths, func(i, j int) bool { return len(paths[i]) < len(paths[j]) })
-
 	var hits []files.Hit
-	for _, path := range paths {
-		info, err := os.Stat(path)
-		if path == "" || err != nil {
+	for path := range strings.SplitSeq(strings.TrimRight(string(out), "\n"), "\n") {
+		name := strings.ToLower(filepath.Base(path))
+		if path == "" || !containsAll(name, f.Terms) {
 			continue
 		}
-		hits = append(hits, files.Hit{Path: path, Size: info.Size(), ModTime: info.ModTime()})
-		if len(hits) == 25 {
-			break
+		if info, err := os.Stat(path); err == nil {
+			hits = append(hits, files.Hit{Path: path, Size: info.Size(), ModTime: info.ModTime()})
 		}
 	}
-	return FileActions(hits)
+	// newest first, like the index among equal names
+	sort.SliceStable(hits, func(i, j int) bool { return hits[i].ModTime.After(hits[j].ModTime) })
+	return hits[:min(len(hits), 25)]
+}
+
+func containsAll(s string, terms []string) bool {
+	for _, t := range terms {
+		if !strings.Contains(s, strings.ToLower(t)) {
+			return false
+		}
+	}
+	return true
 }
 
 func fileAction(path string) action.Action {
