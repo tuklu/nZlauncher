@@ -10,6 +10,7 @@ import (
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/config"
+	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/identity"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
@@ -18,7 +19,7 @@ import (
 // "switch to it" alongside "launch another". Frecency keys on class, not
 // address, so the habit of switching to an app survives window churn.
 func Windows() []action.Action {
-	out, err := exec.Command("hyprctl", "clients", "-j").Output()
+	out, err := hypr.JSON("clients")
 	if err != nil {
 		return nil
 	}
@@ -47,7 +48,7 @@ func Windows() []action.Action {
 			Icon:     "󱂬",
 			Group:    "window",
 			Keywords: []string{c.Class, "window", "switch", "focus"},
-			Cmd:      "hyprctl dispatch focuswindow address:" + c.Address,
+			Cmd:      "nzlauncher focus " + c.Address,
 		})
 	}
 	return acts

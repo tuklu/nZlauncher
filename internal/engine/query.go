@@ -39,7 +39,7 @@ func Query(raw string) ([]action.Action, error) {
 	var ranked []action.Action
 	switch {
 	case q == "":
-		ranked = topItems(append(actions, providers.Windows()...), stats, ctx)
+		ranked = topItems(append(actions, cache.windowList()...), stats, ctx)
 	case q == "apps":
 		ranked = byGroup(actions, "app", stats, now)
 	case groupNames[q]:
@@ -50,7 +50,7 @@ func Query(raw string) ([]action.Action, error) {
 		} else if provided, ok := providers.ByPrefix(strings.TrimSpace(raw)); ok {
 			ranked = append(provided, fallbacks(raw)...)
 		} else {
-			pool := append(actions, providers.Windows()...)
+			pool := append(actions, cache.windowList()...)
 			ranked = append(rank(pool, stats, ctx, q), fallbacks(raw)...)
 		}
 	}

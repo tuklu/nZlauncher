@@ -48,7 +48,7 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 		}
 
 	case "open", "launch", "start":
-		pool := keepGroups(append(actions, providers.Windows()...), "app", "window")
+		pool := keepGroups(append(actions, cache.windowList()...), "app", "window")
 		res := rank(pool, stats, ctx, arg)
 		if u, ok := urlAction(arg); ok {
 			res = append(res, u)
@@ -59,7 +59,7 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 		if rest[0] == "workspace" || rest[0] == "ws" {
 			return providers.Workspace(strings.Join(rest[1:], " "))
 		}
-		return rank(providers.Windows(), stats, ctx, arg)
+		return rank(cache.windowList(), stats, ctx, arg)
 
 	case "connect", "disconnect":
 		// device entries from both radios; state decides connect vs disconnect

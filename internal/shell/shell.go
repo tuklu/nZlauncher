@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/identity"
 )
 
@@ -81,7 +82,7 @@ func processAlive(pid int) bool {
 
 func launcherOnScreen() bool {
 	for _, what := range []string{"clients", "layers"} {
-		out, err := exec.Command("hyprctl", what, "-j").Output()
+		out, err := hypr.JSON(what)
 		if err != nil {
 			return false
 		}

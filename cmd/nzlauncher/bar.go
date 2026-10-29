@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"regexp"
 
+	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/identity"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
@@ -29,7 +30,7 @@ func runBar(initial string) error {
 
 	// capture what was focused before the launcher steals it: context for the event log
 	focused := ""
-	if out, err := exec.Command("hyprctl", "activewindow", "-j").Output(); err == nil {
+	if out, err := hypr.JSON("activewindow"); err == nil {
 		var w struct {
 			Class string `json:"class"`
 		}

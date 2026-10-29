@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/config"
+	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/icons"
 	"github.com/tuklu/nZlauncher/internal/learn"
 	"github.com/tuklu/nZlauncher/internal/providers"
@@ -41,6 +44,44 @@ type state struct {
 
 	ssid   string
 	ssidAt time.Time
+
+	windows []action.Action
+}
+
+// Set by the Hyprland event watcher whenever the window list may differ from
+// the cached one. Starts true so the first query fetches.
+var (
+	windowsStale    atomic.Bool
+	watchingWindows atomic.Bool
+	startWatch      sync.Once
+)
+
+// Events that change what the window provider shows: which windows exist,
+// their titles, and where they are.
+var windowEvents = map[string]bool{
+	"openwindow": true, "closewindow": true, "movewindow": true, "movewindowv2": true,
+	"windowtitle": true, "windowtitlev2": true,
+}
+
+// windowList is the open windows, refetched only after Hyprland reported a
+// change. Without the event socket it fetches every time, as before.
+func (s *state) windowList() []action.Action {
+	startWatch.Do(func() {
+		windowsStale.Store(true)
+		watchingWindows.Store(true)
+		go func() {
+			hypr.Watch(func(e string) bool { return windowEvents[e] }, func() { windowsStale.Store(true) })
+			watchingWindows.Store(false)
+		}()
+	})
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// clear the flag before fetching, so an event during the fetch is not lost
+	if windowsStale.Swap(false) || !watchingWindows.Load() || s.windows == nil {
+		s.windows = providers.Windows()
+	}
+	return slices.Clone(s.windows)
 }
 
 var cache state

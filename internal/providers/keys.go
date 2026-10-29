@@ -4,19 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
 // keys / binds — every Hyprland binding, searchable; picking one executes it.
 func Keys(q string) []action.Action {
 	q = strings.ToLower(q)
-	out, err := exec.Command("hyprctl", "binds", "-j").Output()
+	out, err := hypr.JSON("binds")
 	if err != nil {
 		return nil
 	}

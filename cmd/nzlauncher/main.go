@@ -8,6 +8,7 @@ import (
 
 	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/engine"
+	"github.com/tuklu/nZlauncher/internal/hypr"
 	"github.com/tuklu/nZlauncher/internal/shell"
 	"github.com/tuklu/nZlauncher/internal/ui/gtk"
 	"github.com/tuklu/nZlauncher/internal/ui/tui"
@@ -31,6 +32,11 @@ func main() {
 		err = runPick(os.Args[2:])
 	case "gtk":
 		err = runGTK(strings.Join(os.Args[2:], " "))
+	case "focus":
+		if len(os.Args) < 3 {
+			usage()
+		}
+		err = hypr.Focus(os.Args[2])
 	case "after-close":
 		err = shell.RunAfterClose(os.Args[2:])
 	default:
