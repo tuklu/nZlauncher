@@ -1,6 +1,6 @@
 # Maintainer: tuklu
 pkgname=nzlauncher-git
-pkgver=r0
+pkgver=r32.3becc3e
 pkgrel=1
 pkgdesc="Launcher for Hyprland that learns how you use it"
 arch=('x86_64' 'aarch64')
@@ -19,6 +19,9 @@ optdepends=(
   'hyprmoncfg: monitor provider'
   'swaybg: default wallpaper command'
 )
+# LTO and a debug package buy nothing for cgo wrappers, and LTO makes gcc
+# crawl through gotk4's huge generated C file
+options=('!lto' '!debug')
 provides=('nzlauncher')
 conflicts=('nzlauncher')
 source=("git+https://github.com/tuklu/nZlauncher.git")
