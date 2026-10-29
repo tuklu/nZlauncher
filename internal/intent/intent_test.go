@@ -148,7 +148,7 @@ func TestTypos(t *testing.T) {
 		"nightlihgt":  "nightlight",
 		"fire":        "", // too short to be a typo of anything
 		"xylophone":   "",
-		"filed":       "files", // one edit, five letters
+		"filed":       "", // files with a d, not a typo
 	}
 	for typed, want := range cases {
 		got, ok := NewVocab(vocab).Correct(typed)
@@ -171,5 +171,27 @@ func BenchmarkWords(b *testing.B) {
 				Words(q)
 			}
 		})
+	}
+}
+
+func TestStrictVocabulary(t *testing.T) {
+	// real slips are still fixed
+	for typed, want := range map[string]string{
+		"bluetoth": "bluetooth", "brigthness": "brightness", "yesterdy": "yesterday",
+		"screnshots": "screenshots", "blurtooth": "bluetooth", "nightlihgt": "nightlight",
+	} {
+		if got, _ := vocab.Correct(typed); got != want {
+			t.Errorf("%q: got %q, want %q", typed, got, want)
+		}
+	}
+	// ordinary words the edge hunt saw turned into grammar words
+	for _, w := range []string{"order", "saved", "saves", "changed", "charge", "chance", "marsh",
+		"stars", "smart", "stark", "times", "tiger", "rewind", "unfair", "loader", "dimmed",
+		"internal", "interest", "sneaker", "audit", "aware", "alter", "fills", "filed", "latent",
+		"resent", "never", "mouth", "workplace", "sundae", "launcher", "trucks", "boots", "ducks",
+		"slider"} {
+		if got, ok := vocab.Correct(w); ok {
+			t.Errorf("%q was corrected to %q", w, got)
+		}
 	}
 }

@@ -182,7 +182,7 @@ func RawJoin(ws []Word) string {
 	return strings.Join(parts, " ")
 }
 
-var vocab = NewVocab(vocabulary)
+var vocab = NewStrictVocab(vocabulary)
 
 // correct fixes a typo in a known word, see Vocab.Correct.
 func correct(tok string) string {

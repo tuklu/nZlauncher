@@ -1,6 +1,9 @@
 package intent
 
-import "math"
+import (
+	"math"
+	"strings"
+)
 
 // Typos are measured as a weighted edit distance: a letter added, dropped
 // or changed costs 1, two neighbours swapped cost 1, and a letter changed
@@ -31,29 +34,32 @@ var adjacent = func() (t [256][256]bool) {
 	return t
 }()
 
-func substitution(a, b byte) float64 {
+// substitution costs 0.5 for a neighbouring key and far for any other.
+func substitution(a, b byte, far float64) float64 {
 	switch {
 	case a == b:
 		return 0
 	case adjacent[a][b]:
 		return 0.5
 	}
-	return 1
+	return far
 }
 
 // Distance is the weighted optimal string alignment distance of a and b.
 func Distance(a, b string) float64 {
-	return distance(a, b, math.Inf(1))
+	return distance(a, b, math.Inf(1), 1)
 }
 
 // distance stops early, returning more than limit, once every alignment
-// costs more than limit. Rows live on the stack for words up to 32 letters.
-func distance(a, b string, limit float64) float64 {
+// costs more than limit. far is what changing a letter for a key that is
+// not its neighbour costs. Rows live on the stack for words up to 32 letters.
+func distance(a, b string, limit, far float64) float64 {
 	var r0, r1, r2 [33]float64
+	prev2, prev, cur := r0[:], r1[:], r2[:]
 	if len(b) > 32 {
-		return math.Inf(1)
+		prev2, prev, cur = make([]float64, len(b)+1), make([]float64, len(b)+1), make([]float64, len(b)+1)
 	}
-	prev2, prev, cur := r0[:len(b)+1], r1[:len(b)+1], r2[:len(b)+1]
+	prev2, prev, cur = prev2[:len(b)+1], prev[:len(b)+1], cur[:len(b)+1]
 	for j := range prev {
 		prev[j] = float64(j)
 	}
@@ -61,7 +67,7 @@ func distance(a, b string, limit float64) float64 {
 		cur[0] = float64(i)
 		best := cur[0]
 		for j := 1; j <= len(b); j++ {
-			d := min(prev[j]+1, cur[j-1]+1, prev[j-1]+substitution(a[i-1], b[j-1]))
+			d := min(prev[j]+1, cur[j-1]+1, prev[j-1]+substitution(a[i-1], b[j-1], far))
 			if i > 1 && j > 1 && a[i-1] == b[j-2] && a[i-2] == b[j-1] {
 				d = min(d, prev2[j-2]+1)
 			}
@@ -97,14 +103,30 @@ func Close(typed, want string) bool {
 }
 
 func closeness(typed, want string) (float64, bool) {
-	budget := Budget(len(typed))
+	return closenessWith(typed, want, Budget(len(typed)), 1)
+}
+
+// strictBudget is for correcting a word into the grammar's vocabulary,
+// where a wrong fix changes what the sentence means: from six letters on,
+// one edit up to nine ("workplace" is two from "workspace"), two from ten.
+func strictBudget(n int) float64 {
+	switch {
+	case n < 6:
+		return 0
+	case n < 10:
+		return 1
+	}
+	return 2
+}
+
+func closenessWith(typed, want string, budget, far float64) (float64, bool) {
 	if budget == 0 || len(want) == 0 || abs(len(typed)-len(want)) > int(budget) {
 		return 0, false
 	}
 	if typed[0] != want[0] && !(len(typed) > 1 && len(want) > 1 && typed[0] == want[1] && typed[1] == want[0]) {
 		return 0, false
 	}
-	d := distance(typed, want, budget)
+	d := distance(typed, want, budget, far)
 	return d, d <= budget
 }
 
@@ -113,10 +135,26 @@ func closeness(typed, want string) (float64, bool) {
 // letter, for a swap) are worth measuring.
 type Vocab struct {
 	byFirst [256][]string
+	// strict: a far-key letter change is no typo ("order" is not "older",
+	// "match" is not "march"), and only words of six letters or more are
+	// corrected. Fingers slip onto neighbouring keys, double or drop a
+	// letter, or swap two; a far-off letter is a different word.
+	strict bool
 }
 
+// NewVocab corrects with the plain budget: for names a misspelling is
+// more likely than another real word ("celcius").
 func NewVocab(words map[string]bool) *Vocab {
-	v := &Vocab{}
+	return newVocab(words, false)
+}
+
+// NewStrictVocab is for the grammar's own words, see Vocab.strict.
+func NewStrictVocab(words map[string]bool) *Vocab {
+	return newVocab(words, true)
+}
+
+func newVocab(words map[string]bool, strict bool) *Vocab {
+	v := &Vocab{strict: strict}
 	for w := range words {
 		if len(w) >= 4 {
 			v.byFirst[w[0]] = append(v.byFirst[w[0]], w)
@@ -128,18 +166,22 @@ func NewVocab(words map[string]bool) *Vocab {
 // Correct finds the one word in vocab closest to typed within its budget;
 // a tie between the closest is no fix.
 func (v *Vocab) Correct(typed string) (string, bool) {
-	if Budget(len(typed)) == 0 {
+	budget, far := Budget(len(typed)), 1.0
+	if v.strict {
+		budget, far = strictBudget(len(typed)), budget+1
+	}
+	if budget == 0 {
 		return "", false
 	}
 	best, bestDist, tie := "", math.Inf(1), false
 	try := func(words []string) {
 		for _, w := range words {
-			// a word and its plural are one letter apart but not a typo:
-			// "config" is not "configs"
-			if w == typed+"s" || typed == w+"s" {
+			// a word and its plural or other form are close but not a
+			// typo: "config" is not "configs", "saved" is not "saver"
+			if stem(w) == stem(typed) {
 				continue
 			}
-			d, ok := closeness(typed, w)
+			d, ok := closenessWith(typed, w, budget, far)
 			switch {
 			case !ok:
 			case d < bestDist:
@@ -154,6 +196,18 @@ func (v *Vocab) Correct(typed string) (string, bool) {
 		try(v.byFirst[typed[1]])
 	}
 	return best, best != "" && !tie
+}
+
+// stem drops a common ending: saved, saver, saves and save are one word.
+func stem(w string) string {
+	for _, suffix := range []string{"ing", "ed", "er", "es", "s", "d", "r"} {
+		if len(w) > len(suffix)+2 {
+			if s, ok := strings.CutSuffix(w, suffix); ok {
+				return strings.TrimSuffix(s, "e")
+			}
+		}
+	}
+	return strings.TrimSuffix(w, "e")
 }
 
 func abs(n int) int {
