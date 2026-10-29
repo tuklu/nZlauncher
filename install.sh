@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # nZlauncher installer
-#   curl -fsSL https://raw.githubusercontent.com/tuklu/nZlauncher/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/tuklu/nZlauncher/dev/install.sh | bash
 #
 # Tries the prebuilt release first (fast, no Go needed); falls back to
 # building from source. On Arch, prefer packaging/arch/PKGBUILD.

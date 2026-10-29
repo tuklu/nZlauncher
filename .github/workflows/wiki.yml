@@ -1,9 +1,10 @@
 name: wiki
 
-# docs/ is the source; the wiki is rebuilt from it on every docs change to main
+# docs/ is the source; the wiki is rebuilt from it on every docs change to dev,
+# the default branch
 on:
   push:
-    branches: [main]
+    branches: [dev]
     paths:
       - "docs/**"
       - "README.md"
