@@ -86,7 +86,7 @@ func Search(f Filter) (hits []Hit, ok bool) {
 
 	for _, m := range c.top {
 		e := &ix.entries[m.entry]
-		hits = append(hits, Hit{Path: ix.path(e), Size: e.Size, ModTime: time.Unix(e.ModTime, 0), Strong: m.strong, Buried: m.buried})
+		hits = append(hits, Hit{Path: ix.path(int(m.entry)), Size: e.size, ModTime: time.Unix(int64(e.mtime), 0), Strong: m.strong, Buried: m.buried})
 	}
 	return hits, true
 }
@@ -112,10 +112,10 @@ func collect(c *collector, ix *index, f Filter, lo, hi, byType int) {
 
 func (f Filter) passes(ix *index, i int, dirOK []int8) bool {
 	e := &ix.entries[i]
-	if !f.After.IsZero() && e.ModTime < f.After.Unix() || !f.Before.IsZero() && e.ModTime >= f.Before.Unix() {
+	if mtime := int64(e.mtime); !f.After.IsZero() && mtime < f.After.Unix() || !f.Before.IsZero() && mtime >= f.Before.Unix() {
 		return false
 	}
-	if f.MinSize > 0 && e.Size < f.MinSize || f.MaxSize > 0 && e.Size > f.MaxSize {
+	if f.MinSize > 0 && e.size < f.MinSize || f.MaxSize > 0 && e.size > f.MaxSize {
 		return false
 	}
 	if len(f.Exts) > 0 && !hasExt(ix.nameBytes(i), f.Exts) {
@@ -217,15 +217,15 @@ func (ix *index) candidates(terms []string) ([]uint32, bool) {
 		if len(t) < 3 {
 			return nil, false
 		}
-		var best []uint32
+		// pick by count, decode only the winner
+		var best [2]uint32
 		for k := 0; k+3 <= len(t); k++ {
 			span := ix.trigrams[trigram(t[k:])]
-			list := ix.postings[span[0] : span[0]+span[1]]
-			if k == 0 || len(list) < len(best) {
-				best = list
+			if k == 0 || span[1] < best[1] {
+				best = span
 			}
 		}
-		lists = append(lists, best)
+		lists = append(lists, ix.list(best))
 	}
 	switch len(lists) {
 	case 0:
@@ -323,7 +323,7 @@ func (c *collector) consider(i int) {
 		score += boost
 		strong = strong || len(f.Terms) > 0
 	}
-	c.add(match{entry: int32(i), score: int32(score), mtime: e.ModTime, depth: int32(len(ix.dirs[e.dir])),
+	c.add(match{entry: int32(i), score: int32(score), mtime: int64(e.mtime), depth: int32(len(ix.dirs[e.dir])),
 		buried: ix.buried[e.dir], strong: strong})
 }
 

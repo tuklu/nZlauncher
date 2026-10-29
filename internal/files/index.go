@@ -6,6 +6,7 @@
 package files
 
 import (
+	"encoding/binary"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -23,12 +24,12 @@ import (
 // cover where new files usually appear in between.
 const rescanEvery = 20 * time.Minute
 
-// Entry is one file. Its directory is shared with its siblings.
+// Entry is one file, 16 bytes: its folder is shared with its siblings and
+// its name lives in the packed buffers.
 type Entry struct {
-	dir     int32 // index into index.dirs
-	Name    string
-	Size    int64
-	ModTime int64 // unix seconds
+	dir   int32  // index into index.dirs
+	mtime uint32 // unix seconds; fits until 2106
+	size  int64
 }
 
 type index struct {
@@ -38,11 +39,15 @@ type index struct {
 	// every lowercased name, each followed by '\n'; entry i starts at offsets[i]
 	names   []byte
 	offsets []uint32
-	freq    [256]int // how often each byte occurs in names
-	// trigram of a lowercased name -> span of postings: the entries
-	// containing it, ascending. One flat array, so no per-list slack.
+	// every name as it is on disk, back to back; entry i starts at origAt[i]
+	orig   []byte
+	origAt []uint32
+	freq   [256]int // how often each byte occurs in names
+	// trigram of a lowercased name -> where its list starts in postings and
+	// how many entries it holds. A list is the ascending entries containing
+	// the trigram, stored as varint gaps: about 1.5 bytes an entry, not 4.
 	trigrams map[uint32][2]uint32
-	postings []uint32
+	postings []byte
 	// extension -> entries with it, so "pdfs" with no name is a lookup
 	byExt map[string][]uint32
 	// a directory under a dot folder or inside a build or vendor tree
@@ -60,8 +65,35 @@ type index struct {
 	boost atomic.Pointer[resolvedBoost]
 }
 
-func (ix *index) path(e *Entry) string {
-	return filepath.Join(ix.dirs[e.dir], e.Name)
+func (ix *index) path(i int) string {
+	return filepath.Join(ix.dirs[ix.entries[i].dir], ix.origName(i))
+}
+
+// origName views entry i's name as it is on disk, without copying.
+func (ix *index) origName(i int) string {
+	end := len(ix.orig)
+	if i+1 < len(ix.origAt) {
+		end = int(ix.origAt[i+1])
+	}
+	b := ix.orig[ix.origAt[i]:end]
+	if len(b) == 0 {
+		return ""
+	}
+	return unsafe.String(&b[0], len(b))
+}
+
+// list decodes the entries of one trigram.
+func (ix *index) list(span [2]uint32) []uint32 {
+	out := make([]uint32, 0, span[1])
+	buf := ix.postings[span[0]:]
+	prev := uint64(0)
+	for range span[1] {
+		gap, n := binary.Uvarint(buf)
+		buf = buf[n:]
+		prev += gap
+		out = append(out, uint32(prev))
+	}
+	return out
 }
 
 // Config is what to index; Exclude matches a path component ("node_modules")
@@ -156,8 +188,11 @@ func build(c Config) *index {
 				ix.lastEntry = append(ix.lastEntry, 0)
 			}
 			ix.lastEntry[idx] = uint32(len(ix.entries))
-			e := Entry{dir: idx, Name: d.Name(), Size: info.Size(), ModTime: info.ModTime().Unix()}
-			l := strings.ToLower(e.Name)
+			name := d.Name()
+			e := Entry{dir: idx, mtime: uint32(max(info.ModTime().Unix(), 0)), size: info.Size()}
+			ix.origAt = append(ix.origAt, uint32(len(ix.orig)))
+			ix.orig = append(ix.orig, name...)
+			l := strings.ToLower(name)
 			ix.offsets = append(ix.offsets, uint32(len(ix.names)))
 			ix.names = append(append(ix.names, l...), '\n')
 			for k := 0; k < len(l); k++ {
@@ -190,12 +225,17 @@ func build(c Config) *index {
 	for _, p := range lists {
 		total += len(p)
 	}
-	ix.postings = make([]uint32, 0, total)
+	ix.postings = make([]byte, 0, total*2)
 	for t, p := range lists {
 		ix.trigrams[t] = [2]uint32{uint32(len(ix.postings)), uint32(len(p))}
-		ix.postings = append(ix.postings, p...)
-		delete(lists, t) // free each list as soon as it is copied
+		prev := uint32(0)
+		for _, id := range p {
+			ix.postings = binary.AppendUvarint(ix.postings, uint64(id-prev))
+			prev = id
+		}
+		delete(lists, t) // free each list as soon as it is encoded
 	}
+	ix.postings = slices.Clip(ix.postings)
 	return ix
 }
 
@@ -361,7 +401,7 @@ func (ix *index) find(path string) (int32, bool) {
 	}
 	d := ix.sortedDirs[k]
 	for e := ix.firstEntry[d]; e <= ix.lastEntry[d] && int(e) < len(ix.entries); e++ {
-		if ix.entries[e].dir == int32(d) && ix.entries[e].Name == name {
+		if ix.entries[e].dir == int32(d) && ix.origName(int(e)) == name {
 			return int32(e), true
 		}
 	}

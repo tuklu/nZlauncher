@@ -117,10 +117,10 @@ func fuzzyScore(lname, t string) int {
 // term landed at the start of the name or of a word in it.
 func (ix *index) scoreEntry(i int, terms []string, fuzzy bool) (score int, strong, ok bool) {
 	e := &ix.entries[i]
-	lname := ix.lowerName(i)
+	lname, name := ix.lowerName(i), ix.origName(i)
 	inName, strong := false, true
 	for _, t := range terms {
-		s := termScore(lname, e.Name, t)
+		s := termScore(lname, name, t)
 		switch {
 		case s > 0:
 			inName = true
