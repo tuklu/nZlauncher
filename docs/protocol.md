@@ -19,11 +19,16 @@ any number of requests.
 ```json
 {"op": "query", "q": "set volume 40", "focused": "firefox"}
 {"op": "ping"}
+{"op": "awake", "q": "3600"}
 ```
 
 - `q` is the text in the input box, empty for the first view.
 - `focused` is the class of the window the user came from. It feeds the
   context ranking; leave it out if you don't know it.
+- `awake` keeps the screen from locking and blanking: `q` is a number of
+  seconds, `0` for until turned off, or `off`. The daemon holds the
+  inhibit, because some services drop it when the caller disconnects.
+  `nzlauncher tweak awake` sends this.
 
 ## Responses
 
