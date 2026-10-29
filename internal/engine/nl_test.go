@@ -94,3 +94,44 @@ func TestProfileWords(t *testing.T) {
 		}
 	}
 }
+
+func TestEdgeHuntSentences(t *testing.T) {
+	if !portable.CanRemind() {
+		t.Skip("no way to set reminders here")
+	}
+	reminders := map[string]struct {
+		minutes int
+		text    string
+	}{
+		"remind me to call 911 in 5 min":             {5, "call 911"},
+		"remind me to take 2 pills in 30 minutes":    {30, "take 2 pills"},
+		"remind me in 2 hours and 30 minutes":        {150, ""},
+		"remind me to turn wifi off in 10 minutes":   {10, "turn wifi off"},
+		"start a timer for 5 minutes":                {5, ""},
+		"remind me in 10 minutes to start the oven":  {10, "start oven"},
+		"remind me in 10 minutes to start the times": {10, "start times"},
+	}
+	for q, want := range reminders {
+		acts := nlIntent(nil, nil, queryContext{}, q)
+		if len(acts) != 1 || acts[0].Cmd != portable.Remind(want.minutes, want.text) {
+			t.Errorf("%q: got %+v, want %d min %q", q, acts, want.minutes, want.text)
+		}
+	}
+	levels := map[string]string{
+		"turn up the volume": "+5", "turn the volume up": "+5", "increase volume": "+5",
+		"raise volume by 10": "+10", "lower the brightness": "-5", "volume up a bit": "+5",
+		"brightness down a little": "-5", "make it louder": "+5",
+	}
+	for q, want := range levels {
+		domain, others, ok := levelWords(intent.Content(intent.Words(q)))
+		if got := levelArg(others); !ok || got != want {
+			t.Errorf("%q: %s %q, want %q", q, domain, got, want)
+		}
+	}
+	if _, _, ok := levelWords(intent.Content(intent.Words("mute mic"))); ok {
+		t.Errorf("mute mic is not the speakers")
+	}
+	if p, ok := profileWords(intent.Content(intent.Words("power saver on"))); !ok || p != "power-saver" {
+		t.Errorf("power saver on: %q", p)
+	}
+}

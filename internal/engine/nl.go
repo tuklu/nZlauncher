@@ -28,23 +28,27 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 	verb, rest := words[0].Canon, words[1:]
 	arg := intent.RawJoin(rest)
 
-	// a level word routes with or without "set": "volume 40%", "louder"
-	if verb == "volume" || verb == "brightness" {
-		if level := levelArg(rest); level != "" {
-			return domainProvider(verb)(level)
+	// a reminder first, wherever its word is: "remind me to turn wifi off"
+	// is not a toggle, "start a timer for 5 minutes" is not an app
+	for _, w := range words {
+		if reminderWords[strings.ToLower(w.Raw)] {
+			return reminderIntent(all)
+		}
+	}
+	// "performance mode", "power saver on", "switch to balanced"
+	if profile, ok := profileWords(words); ok {
+		return providers.Power(profile)
+	}
+	// volume or brightness anywhere with a level: "volume 40%", "louder",
+	// "turn up the volume", "lower the brightness", "increase volume by 10"
+	if domain, others, ok := levelWords(words); ok {
+		if level := levelArg(others); level != "" {
+			return domainProvider(domain)(level)
 		}
 	}
 	// "wifi off", "off wifi", "turn bluetooth on", "disable nightlight"
 	if state, domain, ok := toggleWords(words); ok {
 		return toggleIntent(state, domain, actions)
-	}
-	// "remind me in 20 minutes to stretch", "set a timer for 10m"
-	if verb == "remind" || verb == "set" && len(rest) > 0 && rest[0].Canon == "remind" {
-		return reminderIntent(all)
-	}
-	// "performance mode", "power saver", "switch to balanced"
-	if profile, ok := profileWords(words); ok {
-		return providers.Power(profile)
 	}
 	// "keep awake for 2 hours", "awake 45m"
 	if verb == "awake" && len(rest) > 0 {
@@ -109,7 +113,28 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 	return nil
 }
 
-// levelArg turns the words after "volume" or "brightness" into what the
+var reminderWords = map[string]bool{"remind": true, "reminder": true, "timer": true, "alarm": true, "remember": true}
+
+// levelWords finds volume or brightness in a sentence and returns the
+// words around it. The microphone is not the speakers: "mute mic" is left
+// to the catalog.
+func levelWords(ws []intent.Word) (domain string, others []intent.Word, ok bool) {
+	for _, w := range ws {
+		switch strings.ToLower(w.Raw) {
+		case "mic", "microphone", "input":
+			return "", nil, false
+		}
+	}
+	for i, w := range ws {
+		if w.Canon == "volume" || w.Canon == "brightness" {
+			others = append(append(others, ws[:i]...), ws[i+1:]...)
+			return w.Canon, others, true
+		}
+	}
+	return "", nil, false
+}
+
+// levelArg turns the words around "volume" or "brightness" into what the
 // provider takes: "40", "+10", "-5", "mute"; "" when they say no level.
 func levelArg(ws []intent.Word) string {
 	sign, amount := "", ""
@@ -119,7 +144,7 @@ func levelArg(ws []intent.Word) string {
 			sign = map[string]string{"up": "+", "down": "-"}[c]
 		case c == "mute" || c == "unmute":
 			return c
-		case c == "%" || c == "by" || c == "at":
+		case c == "%" || c == "by" || c == "at" || levelFiller[c]:
 		default:
 			c = strings.TrimSuffix(c, "%")
 			if strings.HasPrefix(c, "+") || strings.HasPrefix(c, "-") {
@@ -139,6 +164,13 @@ func levelArg(ws []intent.Word) string {
 		return sign + amount
 	}
 	return amount
+}
+
+// levelFiller are words around a level that say nothing about it:
+// "turn up the volume", "volume up a bit", "make it louder".
+var levelFiller = map[string]bool{
+	"turn": true, "set": true, "it": true, "switch": true, "bit": true, "little": true,
+	"slightly": true, "tad": true, "notch": true, "more": true, "now": true,
 }
 
 var toggleDomains = map[string]bool{"wifi": true, "bluetooth": true, "dnd": true, "nightlight": true, "awake": true}
@@ -166,24 +198,58 @@ func toggleWords(ws []intent.Word) (state, domain string, ok bool) {
 }
 
 func reminderIntent(ws []intent.Word) []action.Action {
+	// every duration counts ("in 2 hours and 30 minutes"); a bare number is
+	// minutes only when there is no duration, so "call 911 in 5 min" keeps
+	// its 911
 	var d time.Duration
-	var msg []intent.Word
+	used := make([]bool, len(ws))
 	for i := 0; i < len(ws); i++ {
-		if got, n := intent.Duration(ws, i); n > 0 && d == 0 {
-			d = got
+		if got, n := intent.Duration(ws, i); n > 0 && ws[i].Raw != "" {
+			d += got
+			for k := i; k < i+n; k++ {
+				used[k] = true
+			}
+			if i > 0 && ws[i-1].Canon == "and" && used[max(i-2, 0)] {
+				used[i-1] = true
+			}
 			i += n - 1
+		}
+	}
+	if d == 0 {
+		for i, w := range ws {
+			if isDigits(w.Canon) && w.Canon != "0" {
+				n, _ := intent.Number(w.Canon)
+				d, used[i] = time.Duration(n)*time.Minute, true
+				break
+			}
+		}
+	}
+	// "start a timer", "set a new reminder": the words that ask for it
+	asking := func(i int) bool {
+		for k := i + 1; k < len(ws); k++ {
+			if reminderWords[strings.ToLower(ws[k].Raw)] {
+				return true
+			}
+			if !ws[k].Filler && ws[k].Canon != "new" {
+				return false
+			}
+		}
+		return false
+	}
+	var msg []intent.Word
+	for i, w := range ws {
+		if used[i] || w.Filler || reminderWords[strings.ToLower(w.Raw)] {
 			continue
 		}
-		// a bare number is minutes, as before: "remind 10 tea"
-		if c := ws[i].Canon; d == 0 && isDigits(c) && c != "0" {
-			n, _ := intent.Number(c)
-			d = time.Duration(n) * time.Minute
+		switch strings.ToLower(w.Raw) {
+		case "about", "after", "that":
 			continue
+		case "set", "start", "new", "create", "make", "add":
+			if asking(i) {
+				continue
+			}
 		}
-		if c := ws[i].Canon; ws[i].Filler || c == "remind" || c == "set" || c == "about" || c == "after" || c == "that" {
-			continue
-		}
-		msg = append(msg, ws[i])
+		msg = append(msg, w)
 	}
 	if d == 0 {
 		// asking for the time needs neZha's script; the timer needs a duration
@@ -276,6 +342,7 @@ func toggleIntent(state, domain string, actions []action.Action) []action.Action
 		return all
 	}
 	// catalog toggles: nightlight, idle, screensaver, bar...
+	domain = strings.ToLower(domain)
 	var res []action.Action
 	for _, a := range actions {
 		if a.Group == "toggle" && strings.Contains(strings.ToLower(a.Name), domain) {
