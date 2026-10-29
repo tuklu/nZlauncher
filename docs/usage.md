@@ -66,7 +66,7 @@ The first word can send the query to one provider:
 
 | Type | You get |
 |---|---|
-| `wifi`, `net` | known networks to connect or disconnect, on/off toggles |
+| `wifi`, `net` | networks in range with signal, the radio toggle; known and open ones connect directly, a new secured one opens a terminal that asks for the passphrase. Works with iwd and NetworkManager |
 | `bt`, `bluetooth` | paired devices and their connection state, power toggle |
 | `audio`, `output` | output devices, current one marked |
 | `vol 40`, `vol +10`, `volume` | set volume directly or by a step, presets, mute |

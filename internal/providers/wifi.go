@@ -1,98 +1,98 @@
 package providers
 
 import (
+	"fmt"
 	"os/exec"
-	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/shell"
-	"github.com/tuklu/nZlauncher/internal/sysinfo"
+	"github.com/tuklu/nZlauncher/internal/wifi"
 )
 
-// wifi / net — toggles, known networks from iwd's cached scan, impala for depth.
-// Known networks connect directly; new ones need a passphrase, which is what
-// the impala escape hatch is for.
+// wifi / net: the radio toggle and the networks in range, from iwd or
+// NetworkManager. Known and open networks connect directly; a new secured one
+// opens a terminal where the service's own tool asks for the passphrase.
 func Wifi(q string) []action.Action {
 	if !On("wifi") {
 		return nil
 	}
 	q = strings.ToLower(q)
-	iface := wifiInterface()
+	state := wifi.Current()
+	wifi.Scan()
 
-	acts := []action.Action{
-		{ID: "wifi:on", Name: "WiFi On", Icon: "󰖩", Group: "wifi",
-			Cmd: "rfkill unblock wlan && notify-send -u low 'WiFi on'"},
-		{ID: "wifi:off", Name: "WiFi Off", Icon: "󰖪", Group: "wifi",
-			Cmd: "rfkill block wlan && notify-send -u low 'WiFi off'"},
+	var acts []action.Action
+	if state.Enabled {
+		acts = append(acts, action.Action{ID: "wifi:off", Name: "WiFi Off", Icon: "󰖪", Group: "wifi", Hint: "on",
+			Cmd: "rfkill block wlan && notify-send -u low 'WiFi off'"})
+	} else {
+		acts = append(acts, action.Action{ID: "wifi:on", Name: "WiFi On", Icon: "󰖩", Group: "wifi", Hint: "off",
+			Cmd: "rfkill unblock wlan && notify-send -u low 'WiFi on'"})
 	}
 
-	connected := sysinfo.CurrentSSID()
-	for _, ssid := range scanNetworks(iface) {
-		if ssid == connected {
-			acts = append(acts, action.Action{
-				ID: "wifi:" + ssid, Name: "Disconnect " + ssid + "   (connected)",
-				Icon: "󰖩", Group: "wifi",
-				Cmd: "iwctl station " + iface + " disconnect",
-			})
+	shown := 0
+	for _, n := range state.Networks {
+		if q != "" && !strings.Contains(strings.ToLower(n.SSID), q) {
 			continue
 		}
-		acts = append(acts, action.Action{
-			ID: "wifi:" + ssid, Name: "Connect " + ssid, Icon: "󰖩", Group: "wifi",
-			Cmd: "iwctl station " + iface + " connect " + shell.Quote(ssid) +
-				" || notify-send 'Needs passphrase' 'Open impala to join " + ssid + "'",
-		})
-	}
-
-	if q != "" {
-		filtered := acts[:0]
-		for _, a := range acts {
-			if strings.Contains(strings.ToLower(a.Name), q) {
-				filtered = append(filtered, a)
-			}
+		if shown++; shown > 12 {
+			break
 		}
-		acts = filtered
+		ssid := shell.Quote(n.SSID)
+		a := action.Action{ID: "wifi:" + n.SSID, Icon: signalIcon(n.Signal), Group: "wifi", Hint: wifiHint(n)}
+		switch {
+		case n.Connected:
+			a.Name = "Disconnect " + n.SSID
+			a.Cmd = "nzlauncher wifi disconnect && notify-send -u low " + shell.Quote("Disconnected "+n.SSID) +
+				" || notify-send " + shell.Quote("Could not disconnect "+n.SSID)
+		case n.Known || n.Security == "open":
+			a.Name = "Connect " + n.SSID
+			a.Cmd = "nzlauncher wifi connect " + ssid + " && notify-send -u low " + shell.Quote("Connected "+n.SSID) +
+				" || notify-send " + shell.Quote("Could not connect "+n.SSID)
+		default:
+			a.Name = "Connect " + n.SSID
+			a.Cmd = "launch-tui " + joinCommand(state, n.SSID)
+		}
+		acts = append(acts, a)
 	}
 
+	switch state.Backend {
+	case "networkmanager":
+		return append(acts, tuiTail("nmtui", "nmtui", "full WiFi manager")...)
+	}
 	return append(acts, tuiTail("impala", "Impala", "full WiFi manager")...)
 }
 
-var ansiCodes = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-
-func scanNetworks(iface string) []string {
-	out, err := exec.Command("iwctl", "station", iface, "get-networks", "rssi-dbms").Output()
-	if err != nil {
-		return nil
+// joinCommand asks for the passphrase in a terminal, with the backend's tool.
+func joinCommand(state wifi.State, ssid string) string {
+	if state.Backend == "networkmanager" {
+		return "nmcli --ask device wifi connect " + shell.Quote(ssid)
 	}
-
-	var ssids []string
-	for _, line := range strings.Split(ansiCodes.ReplaceAllString(string(out), ""), "\n") {
-		fields := strings.Fields(strings.TrimPrefix(strings.TrimSpace(line), "> "))
-		// columns: ssid (may contain spaces), security, rssi — header rows
-		// and separators fail the numeric-rssi check
-		if len(fields) < 3 || !strings.HasPrefix(fields[len(fields)-1], "-") {
-			continue
-		}
-		if _, err := strconv.Atoi(fields[len(fields)-1]); err != nil {
-			continue
-		}
-		ssids = append(ssids, strings.Join(fields[:len(fields)-2], " "))
-	}
-	return ssids
+	return "iwctl station " + shell.Quote(state.Interface) + " connect " + shell.Quote(ssid)
 }
 
-func wifiInterface() string {
-	out, err := exec.Command("iw", "dev").Output()
-	if err != nil {
-		return "wlan0"
+func wifiHint(n wifi.Network) string {
+	switch {
+	case n.Connected:
+		return fmt.Sprintf("connected · %d%%", n.Signal)
+	case n.Known:
+		return fmt.Sprintf("known · %d%%", n.Signal)
+	case n.Security == "open":
+		return fmt.Sprintf("open · %d%%", n.Signal)
 	}
-	for _, line := range strings.Split(string(out), "\n") {
-		if name, ok := strings.CutPrefix(strings.TrimSpace(line), "Interface "); ok {
-			return name
-		}
+	return fmt.Sprintf("new · %s · %d%%", n.Security, n.Signal)
+}
+
+func signalIcon(percent int) string {
+	switch {
+	case percent >= 75:
+		return "󰤨"
+	case percent >= 50:
+		return "󰤥"
+	case percent >= 25:
+		return "󰤢"
 	}
-	return "wlan0"
+	return "󰤟"
 }
 
 // Escape hatch into a real TUI when the quick action isn't enough.

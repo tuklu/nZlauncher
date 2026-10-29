@@ -3,9 +3,10 @@ package sysinfo
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/tuklu/nZlauncher/internal/wifi"
 )
 
 func OnBattery() bool {
@@ -19,15 +20,8 @@ func OnBattery() bool {
 	return len(bats) > 0
 }
 
+// CurrentSSID is the Wi-Fi network in use, from the Wi-Fi service's cached
+// state; "" when offline or no supported service runs.
 func CurrentSSID() string {
-	out, err := exec.Command("iw", "dev").Output()
-	if err != nil {
-		return ""
-	}
-	for _, line := range strings.Split(string(out), "\n") {
-		if ssid, ok := strings.CutPrefix(strings.TrimSpace(line), "ssid "); ok {
-			return ssid
-		}
-	}
-	return ""
+	return wifi.Current().Connected()
 }
