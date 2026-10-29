@@ -10,6 +10,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/tuklu/nZlauncher/internal/identity"
 )
 
 func Launch(command string) error {
@@ -28,9 +30,9 @@ func StartDetached(cmd *exec.Cmd) error {
 // Window class (TUI, GTK window mode) and layer namespace (GTK overlay)
 // that mark the launcher as still on screen.
 var launcherSurfaces = [][]byte{
-	[]byte(`"nz.launcher"`),
-	[]byte(`"dev.tuklu.nz"`),
-	[]byte(`"nz-bar"`),
+	[]byte(`"` + identity.TUIClass + `"`),
+	[]byte(`"` + identity.AppID + `"`),
+	[]byte(`"` + identity.Namespace + `"`),
 }
 
 const (

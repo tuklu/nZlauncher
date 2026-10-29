@@ -13,12 +13,13 @@ import (
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/config"
 	"github.com/tuklu/nZlauncher/internal/engine"
+	"github.com/tuklu/nZlauncher/internal/identity"
 	"github.com/tuklu/nZlauncher/internal/learn"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
 func Run(initial, mode string) error {
-	app := gtk.NewApplication("dev.tuklu.nz", gio.ApplicationFlagsNone)
+	app := gtk.NewApplication(identity.AppID, gio.ApplicationFlagsNone)
 	var picked string // command to run once the window is gone
 	app.ConnectActivate(func() { buildWindow(app, initial, mode, &picked) })
 	if code := app.Run(nil); code > 0 {
@@ -74,7 +75,7 @@ func buildWindow(app *gtk.Application, initial, mode string, picked *string) {
 	if mode == "overlay" && layershell.IsSupported() {
 		w := &win.Window
 		layershell.InitForWindow(w)
-		layershell.SetNamespace(w, "nz-bar")
+		layershell.SetNamespace(w, identity.Namespace)
 		layershell.SetLayer(w, layershell.LayerShellLayerOverlay)
 		layershell.SetKeyboardMode(w, layershell.LayerShellKeyboardModeExclusive)
 	}

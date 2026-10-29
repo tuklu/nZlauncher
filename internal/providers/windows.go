@@ -10,6 +10,7 @@ import (
 
 	"github.com/tuklu/nZlauncher/internal/action"
 	"github.com/tuklu/nZlauncher/internal/config"
+	"github.com/tuklu/nZlauncher/internal/identity"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
@@ -33,7 +34,7 @@ func Windows() []action.Action {
 
 	var acts []action.Action
 	for _, c := range clients {
-		if !c.Mapped || c.Title == "" || c.Class == "nz.launcher" {
+		if !c.Mapped || c.Title == "" || strings.HasPrefix(c.Class, identity.AppID) {
 			continue
 		}
 		title := []rune(c.Title)

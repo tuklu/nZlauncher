@@ -34,50 +34,50 @@ the raw command.
 
 ## Window rules
 
-The TUI face is a ghostty window with class `nz.launcher`. `nzlauncher pick`
-uses `nz.pick`. The GTK face in `window` mode uses `dev.tuklu.nz`.
+The TUI face is a ghostty window with class `dev.tuklu.nzlauncher.tui`. `nzlauncher pick`
+uses `dev.tuklu.nzlauncher.pick`. The GTK face in `window` mode uses `dev.tuklu.nzlauncher`.
 
 ```lua
-hl.window_rule({ match = { class = "^nz\\.launcher$" }, float = true })
-hl.window_rule({ match = { class = "^nz\\.launcher$" }, center = true })
-hl.window_rule({ match = { class = "^nz\\.launcher$" }, size = "720 420" })
+hl.window_rule({ match = { class = "^dev\\.tuklu\\.nzlauncher\\.tui$" }, float = true })
+hl.window_rule({ match = { class = "^dev\\.tuklu\\.nzlauncher\\.tui$" }, center = true })
+hl.window_rule({ match = { class = "^dev\\.tuklu\\.nzlauncher\\.tui$" }, size = "720 420" })
 
-hl.window_rule({ match = { class = "^nz\\.pick$" }, float = true })
-hl.window_rule({ match = { class = "^nz\\.pick$" }, center = true })
-hl.window_rule({ match = { class = "^nz\\.pick$" }, size = "620 360" })
+hl.window_rule({ match = { class = "^dev\\.tuklu\\.nzlauncher\\.pick$" }, float = true })
+hl.window_rule({ match = { class = "^dev\\.tuklu\\.nzlauncher\\.pick$" }, center = true })
+hl.window_rule({ match = { class = "^dev\\.tuklu\\.nzlauncher\\.pick$" }, size = "620 360" })
 
-hl.window_rule({ match = { class = "^dev\\.tuklu\\.nz$" }, float = true })
-hl.window_rule({ match = { class = "^dev\\.tuklu\\.nz$" }, center = true })
-hl.window_rule({ match = { class = "^dev\\.tuklu\\.nz$" }, size = "760 500" })
+hl.window_rule({ match = { class = "^dev\\.tuklu\\.nzlauncher$" }, float = true })
+hl.window_rule({ match = { class = "^dev\\.tuklu\\.nzlauncher$" }, center = true })
+hl.window_rule({ match = { class = "^dev\\.tuklu\\.nzlauncher$" }, size = "760 500" })
 ```
 
 ```conf
-windowrule = float, class:^nz\.launcher$
-windowrule = center, class:^nz\.launcher$
-windowrule = size 720 420, class:^nz\.launcher$
+windowrule = float, class:^dev\.tuklu\.nzlauncher\.tui$
+windowrule = center, class:^dev\.tuklu\.nzlauncher\.tui$
+windowrule = size 720 420, class:^dev\.tuklu\.nzlauncher\.tui$
 
-windowrule = float, class:^nz\.pick$
-windowrule = center, class:^nz\.pick$
-windowrule = size 620 360, class:^nz\.pick$
+windowrule = float, class:^dev\.tuklu\.nzlauncher\.pick$
+windowrule = center, class:^dev\.tuklu\.nzlauncher\.pick$
+windowrule = size 620 360, class:^dev\.tuklu\.nzlauncher\.pick$
 
-windowrule = float, class:^dev\.tuklu\.nz$
-windowrule = center, class:^dev\.tuklu\.nz$
-windowrule = size 760 500, class:^dev\.tuklu\.nz$
+windowrule = float, class:^dev\.tuklu\.nzlauncher$
+windowrule = center, class:^dev\.tuklu\.nzlauncher$
+windowrule = size 760 500, class:^dev\.tuklu\.nzlauncher$
 ```
 
 ## Layer rules
 
 The GTK face in `overlay` mode is a layer surface with namespace
-`nz-bar`. Window rules don't reach it.
+`nzlauncher`. Window rules don't reach it.
 
 ```lua
-hl.layer_rule({ match = { namespace = "^nz-bar$" }, blur = true })
-hl.layer_rule({ match = { namespace = "^nz-bar$" }, ignore_alpha = 0.1 })
+hl.layer_rule({ match = { namespace = "^nzlauncher$" }, blur = true })
+hl.layer_rule({ match = { namespace = "^nzlauncher$" }, ignore_alpha = 0.1 })
 ```
 
 ```conf
-layerrule = blur, nz-bar
-layerrule = ignorealpha 0.1, nz-bar
+layerrule = blur, nzlauncher
+layerrule = ignorealpha 0.1, nzlauncher
 ```
 
 ## Running actions after the launcher closes
@@ -86,8 +86,8 @@ When you pick something, the command doesn't start right away. The
 launcher hands it to a detached `nzlauncher after-close`, which:
 
 1. waits for the launcher process to exit
-2. polls `hyprctl clients` and `hyprctl layers` until no `nz.launcher`,
-   `dev.tuklu.nz` or `nz-bar` surface is left
+2. polls `hyprctl clients` and `hyprctl layers` until no `dev.tuklu.nzlauncher.tui`,
+   `dev.tuklu.nzlauncher` or `nzlauncher` surface is left
 3. waits another 120ms for the close animation
 4. runs the command
 
@@ -96,11 +96,11 @@ your close animation is long enough that the screenshot tools still
 catch the fade-out, turn animations off for the launcher:
 
 ```lua
-hl.window_rule({ match = { class = "^nz\\.launcher$" }, no_anim = true })
+hl.window_rule({ match = { class = "^dev\\.tuklu\\.nzlauncher\\.tui$" }, no_anim = true })
 ```
 
 ```conf
-windowrule = noanim, class:^nz\.launcher$
+windowrule = noanim, class:^dev\.tuklu\.nzlauncher\.tui$
 ```
 
 ## Two copies on PATH
@@ -117,3 +117,10 @@ which -a nzlauncher
 Remove the stale one. A leftover `nz` from before the rename can go too;
 the binary is `nzlauncher` now, `nz` is only worth keeping as a shell alias
 (`alias nz=nzlauncher`), since binds do not see aliases.
+
+## Upgrading from the old names
+
+Before the rename the ids were `nz.launcher`, `nz.pick`, `dev.tuklu.nz` and
+the layer namespace `nz-bar`. Rules matching those no longer apply; switch
+them to `dev.tuklu.nzlauncher.tui`, `dev.tuklu.nzlauncher.pick`,
+`dev.tuklu.nzlauncher` and `nzlauncher`.

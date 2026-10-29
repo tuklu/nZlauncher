@@ -141,4 +141,4 @@ choice=$(printf 'one\ntwo\nthree\n' | nzlauncher pick -p "Number")
 name=$(nzlauncher pick -i -p "Name" < /dev/null)    # -i returns typed text if nothing matches
 ```
 
-The window class is `nz.pick`, so you can give it its own rules.
+The window class is `dev.tuklu.nzlauncher.pick`, so you can give it its own rules.

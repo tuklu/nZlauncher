@@ -108,7 +108,7 @@ is less work. See [Plugins](plugins.md).
   `providers/keys.go` reads the `hl.bind(...)` calls from the config
   files and runs them with `hyprctl eval`.
 - The GTK face's Wayland app id is the GtkApplication id,
-  `dev.tuklu.nz`.
+  `dev.tuklu.nzlauncher`.
 - GTK's SearchEntry eats Escape. The key controller has to use the
   capture phase to see it.
 - Don't run a picked command from inside the face. Hand it to

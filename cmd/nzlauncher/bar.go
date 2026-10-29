@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"regexp"
 
+	"github.com/tuklu/nZlauncher/internal/identity"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
@@ -16,7 +17,8 @@ func runBar(initial string) error {
 		self = "nzlauncher"
 	}
 
-	killed := exec.Command("pkill", "-f", `class=nz\.launcher`).Run() == nil
+	// no leading dashes, or pkill reads the pattern as an option
+	killed := exec.Command("pkill", "-f", "class="+regexp.QuoteMeta(identity.TUIClass)).Run() == nil
 	// anchored to our own binary so an unrelated command line never matches
 	if exec.Command("pkill", "-f", "^"+regexp.QuoteMeta(self)+" gtk").Run() == nil {
 		killed = true
@@ -41,7 +43,7 @@ func runBar(initial string) error {
 		cmd = exec.Command(self, "gtk", initial)
 	} else {
 		cmd = exec.Command("ghostty",
-			"--class=nz.launcher",
+			"--class="+identity.TUIClass,
 			"--gtk-single-instance=false",
 			"--window-padding-x=12",
 			"--window-padding-y=10",

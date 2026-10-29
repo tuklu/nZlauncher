@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/tuklu/nZlauncher/internal/identity"
 	"github.com/tuklu/nZlauncher/internal/shell"
 )
 
@@ -41,7 +42,7 @@ func runPick(args []string) error {
 		fzfArgs = append(fzfArgs, "--print-query")
 	}
 
-	lines, err := floatFzf(string(data), fzfArgs, "nz.pick")
+	lines, err := floatFzf(string(data), fzfArgs, identity.PickClass)
 	if err != nil {
 		return nil
 	}
