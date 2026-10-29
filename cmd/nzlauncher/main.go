@@ -18,6 +18,14 @@ import (
 )
 
 func main() {
+	// linked as dmenu, it is dmenu
+	if filepath.Base(os.Args[0]) == "dmenu" {
+		if err := runDmenu(os.Args[1:]); err != nil {
+			fmt.Fprintln(os.Stderr, "dmenu:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) < 2 {
 		usage()
 	}
@@ -31,6 +39,8 @@ func main() {
 		err = tui.Run(strings.Join(os.Args[2:], " "))
 	case "bar":
 		err = runBar(strings.Join(os.Args[2:], " "))
+	case "dmenu":
+		err = runDmenu(os.Args[2:])
 	case "pick":
 		err = runPick(os.Args[2:])
 	case "gtk":
@@ -55,7 +65,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nzlauncher bar [query] | tui [query] | gtk [query] | pick | query [text] | serve | focus <address>")
+	fmt.Fprintln(os.Stderr, "usage: nzlauncher bar [query] | tui [query] | gtk [query] | pick | dmenu | query [text] | serve | focus <address>")
 	os.Exit(2)
 }
 
