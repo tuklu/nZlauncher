@@ -121,6 +121,7 @@ func TestEdgeHuntSentences(t *testing.T) {
 		"turn up the volume": "+5", "turn the volume up": "+5", "increase volume": "+5",
 		"raise volume by 10": "+10", "lower the brightness": "-5", "volume up a bit": "+5",
 		"brightness down a little": "-5", "make it louder": "+5",
+		"volume max": "100", "volume full": "100", "volume half": "50", "brightness min": "1",
 	}
 	for q, want := range levels {
 		domain, others, ok := levelWords(intent.Content(intent.Words(q)))

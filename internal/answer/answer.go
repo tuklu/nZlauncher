@@ -71,6 +71,10 @@ func conversion(q string) (n float64, from, to string, ok bool) {
 	// "how many cm in 5 ft"
 	if len(words) >= 5 && words[0] == "how" && words[1] == "many" {
 		target := unitWord(words[2])
+		// "how many feet in a mile"
+		if len(words) == 6 && (words[4] == "a" || words[4] == "an") {
+			words[4] = "1"
+		}
 		if n, unit, used := amount(words[4:]); used > 0 && words[3] == "in" && 4+used == len(words) {
 			return n, unit, target, true
 		}

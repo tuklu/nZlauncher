@@ -144,6 +144,12 @@ func levelArg(ws []intent.Word) string {
 			sign = map[string]string{"up": "+", "down": "-"}[c]
 		case c == "mute" || c == "unmute":
 			return c
+		case c == "max" || c == "maximum" || c == "full":
+			amount = "100"
+		case c == "half":
+			amount = "50"
+		case c == "min" || c == "minimum":
+			amount = "1"
 		case c == "%" || c == "by" || c == "at" || levelFiller[c]:
 		default:
 			c = strings.TrimSuffix(c, "%")

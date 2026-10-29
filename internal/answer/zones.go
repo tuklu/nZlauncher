@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/tuklu/nZlauncher/internal/intent"
 )
 
 // Places come from the system's tz database: every zone's city
@@ -46,6 +49,7 @@ var placeAliases = map[string]string{
 var places struct {
 	once  sync.Once
 	names map[string]string // lowercase place -> zone name
+	vocab *intent.Vocab     // the same names, for typos
 	locs  sync.Map          // zone name -> *time.Location
 }
 
@@ -84,23 +88,35 @@ func loadPlaces() {
 		names[k] = v
 	}
 	places.names = names
+	known := make(map[string]bool, len(names))
+	for n := range names {
+		known[n] = true
+	}
+	places.vocab = intent.NewVocab(known)
 }
 
-func location(place string) (*time.Location, string, bool) {
+// location finds a place's zone; name is the place as understood, typo
+// fixed ("londn" is london).
+func location(place string) (loc *time.Location, zone, name string, ok bool) {
 	places.once.Do(loadPlaces)
-	zone, ok := places.names[strings.TrimSpace(place)]
-	if !ok {
-		return nil, "", false
+	name = strings.TrimSpace(place)
+	if zone, ok = places.names[name]; !ok {
+		// "londn", "tokio": a typo in a place name
+		fix, fixed := places.vocab.Correct(name)
+		if !fixed {
+			return nil, "", "", false
+		}
+		name, zone = fix, places.names[fix]
 	}
-	if loc, ok := places.locs.Load(zone); ok {
-		return loc.(*time.Location), zone, true
+	if cached, ok := places.locs.Load(zone); ok {
+		return cached.(*time.Location), zone, name, true
 	}
 	loc, err := time.LoadLocation(zone)
 	if err != nil {
-		return nil, "", false
+		return nil, "", "", false
 	}
 	places.locs.Store(zone, loc)
-	return loc, zone, true
+	return loc, zone, name, true
 }
 
 // timeIn answers "time in tokyo", "tokyo time", "what time is it in london",
@@ -113,40 +129,52 @@ func timeIn(q string, now time.Time) (Answer, bool) {
 	q = strings.Replace(q, "time now in ", "time in ", 1)
 	for _, p := range []string{"time is it in ", "time in ", "time at "} {
 		if place, ok := strings.CutPrefix(q, p); ok {
-			if loc, zone, ok := location(place); ok {
-				return clockAnswer(now, now.In(loc), zone, place), true
+			if loc, zone, name, ok := location(place); ok {
+				return clockAnswer(now, now.In(loc), zone, name), true
 			}
 		}
 	}
 	if place, ok := strings.CutSuffix(q, " time"); ok {
-		if loc, zone, ok := location(place); ok {
-			return clockAnswer(now, now.In(loc), zone, place), true
+		if loc, zone, name, ok := location(place); ok {
+			return clockAnswer(now, now.In(loc), zone, name), true
 		}
 	}
 
-	// a clock time and where it is going: "3pm in tokyo"
+	// a clock time and where it is going: "3pm in tokyo", "3pm tokyo",
+	// "3pm tokyo time", "tokyo time 3pm"
 	words := strings.Fields(q)
+	// "tokyo time 3pm" reads as "3pm tokyo"
+	if k := slices.Index(words, "time"); k > 0 && k == len(words)-2 {
+		place, at := words[:k], words[k+1]
+		words = append([]string{at}, place...)
+	}
+	if len(words) > 1 && words[len(words)-1] == "time" {
+		words = words[:len(words)-1]
+	}
 	h, m, used := clock(words)
 	if used == 0 || used >= len(words) {
 		return Answer{}, false
 	}
 	rest := strings.Join(words[used:], " ")
+	if !strings.Contains(" "+rest, " in ") && !strings.Contains(" "+rest, " to ") {
+		rest = "in " + rest
+	}
 	from, to := now.Location(), ""
 	fromName := "here"
 	for _, sep := range []string{" in ", " to "} {
 		if a, b, ok := strings.Cut(" "+rest, sep); ok {
 			to = b
 			if a = strings.TrimSpace(a); a != "" {
-				loc, _, ok := location(a)
+				loc, _, name, ok := location(a)
 				if !ok {
 					return Answer{}, false
 				}
-				from, fromName = loc, titleCase(a)
+				from, fromName = loc, titleCase(name)
 			}
 			break
 		}
 	}
-	target, zone, ok := location(to)
+	target, zone, to, ok := location(to)
 	if !ok {
 		return Answer{}, false
 	}

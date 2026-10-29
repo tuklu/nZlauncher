@@ -218,3 +218,24 @@ func TestEdgeHunt(t *testing.T) {
 		}
 	}
 }
+
+func TestEdgeHuntRound2(t *testing.T) {
+	cases := map[string]string{
+		"3pm tokyo":               "18:30 in Tokyo",
+		"3pm tokyo time":          "18:30 in Tokyo",
+		"tokyo time 3pm":          "18:30 in Tokyo",
+		"time in londn":           "09:30 in London",
+		"time in tokio":           "18:30 in Tokyo",
+		"how many feet in a mile": "5280 ft",
+		"weeks until christmas":   "8 weeks 1 day",
+	}
+	for q, want := range cases {
+		got := For(q, now, all)
+		if len(got) == 0 || got[0].Name != want {
+			t.Errorf("%q: got %+v, want %q", q, got, want)
+		}
+	}
+	if got := For("2125551234", now, all); len(got) != 0 {
+		t.Errorf("a phone number is no timestamp: %+v", got)
+	}
+}

@@ -45,6 +45,14 @@ func dateMath(q string, now time.Time) (Answer, bool) {
 			days = -days
 		}
 		value := strconv.Itoa(days)
+		// "weeks until christmas" answers in weeks
+		if strings.HasSuffix(before, "weeks") {
+			name := plural(days/7, "week")
+			if days%7 != 0 {
+				name += " " + plural(days%7, "day")
+			}
+			return Answer{Value: name, Name: name, Hint: target.Format("Mon 2 Jan 2006") + " · " + plural(days, "day")}, true
+		}
 		return Answer{Value: value, Name: plural(days, "day"), Hint: target.Format("Mon 2 Jan 2006") + weeksHint(days)}, true
 	}
 
@@ -80,7 +88,9 @@ func dateMath(q string, now time.Time) (Answer, bool) {
 		if len(q) == 13 {
 			t = time.UnixMilli(n)
 		}
-		if t.Year() < 2001 || t.Year() > 2100 {
+		// a phone number is ten digits too: only dates from 2001 to a few
+		// years ahead pass as timestamps
+		if t.Year() < 2001 || t.Year() > time.Now().Year()+5 {
 			return Answer{}, false
 		}
 		value := t.Format("2006-01-02 15:04:05")
