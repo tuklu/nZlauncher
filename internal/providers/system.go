@@ -135,7 +135,17 @@ func Volume(q string) []action.Action {
 	if !On("volume") {
 		return nil
 	}
-	if n, err := strconv.Atoi(q); err == nil && n >= 0 && n <= 100 {
+	switch sign, n, ok := level(q); {
+	case q == "mute":
+		return []action.Action{{ID: "vol:mute", Name: "Mute Toggle", Icon: "󰝟", Group: "audio",
+			Cmd: "osd --output-volume mute-toggle"}}
+	case ok && sign == "+":
+		return []action.Action{{ID: "vol:up", Name: fmt.Sprintf("Volume Up %d%%", n), Icon: "󰕾", Group: "audio",
+			Cmd: fmt.Sprintf("osd --output-volume +%d", n)}}
+	case ok && sign == "-":
+		return []action.Action{{ID: "vol:down", Name: fmt.Sprintf("Volume Down %d%%", n), Icon: "󰖀", Group: "audio",
+			Cmd: fmt.Sprintf("osd --output-volume -%d", n)}}
+	case ok:
 		return []action.Action{{
 			ID: "vol:set", Name: fmt.Sprintf("Volume %d%%", n), Icon: "󰕾", Group: "audio",
 			Cmd: fmt.Sprintf("wpctl set-volume @DEFAULT_AUDIO_SINK@ %d%%", n),
@@ -196,7 +206,14 @@ func Brightness(q string) []action.Action {
 	if !On("brightness") {
 		return nil
 	}
-	if n, err := strconv.Atoi(q); err == nil && n >= 1 && n <= 100 {
+	switch sign, n, ok := level(q); {
+	case ok && sign == "+":
+		return []action.Action{{ID: "bright:up", Name: fmt.Sprintf("Brightness Up %d%%", n), Icon: "󰃠", Group: "display",
+			Cmd: fmt.Sprintf("brightness %d%%+", n)}}
+	case ok && sign == "-":
+		return []action.Action{{ID: "bright:down", Name: fmt.Sprintf("Brightness Down %d%%", n), Icon: "󰃞", Group: "display",
+			Cmd: fmt.Sprintf("brightness %d%%-", n)}}
+	case ok && n >= 1:
 		return []action.Action{{
 			ID: "bright:set", Name: fmt.Sprintf("Brightness %d%%", n), Icon: "󰃟", Group: "display",
 			Cmd: fmt.Sprintf("brightness %d%%", n),
@@ -210,4 +227,23 @@ func Brightness(q string) []action.Action {
 		})
 	}
 	return acts
+}
+
+// level reads "40", "40%", "+10", "-5", "up", "down" (a step of 5).
+func level(q string) (sign string, n int, ok bool) {
+	q = strings.TrimSuffix(strings.TrimSpace(q), "%")
+	switch q {
+	case "up":
+		return "+", 5, true
+	case "down":
+		return "-", 5, true
+	}
+	if strings.HasPrefix(q, "+") || strings.HasPrefix(q, "-") {
+		sign, q = q[:1], q[1:]
+	}
+	n, err := strconv.Atoi(q)
+	if err != nil || n < 0 || n > 100 {
+		return "", 0, false
+	}
+	return sign, n, true
 }
