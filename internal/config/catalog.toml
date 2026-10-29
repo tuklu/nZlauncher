@@ -6,7 +6,7 @@
 [[action]]
 id = "lock"
 name = "Lock Screen"
-icon = ""
+icon = "󰌾"
 group = "power"
 cmd = "lock-screen"
 
@@ -83,21 +83,21 @@ cmd = "pkill -SIGUSR1 waybar"
 [[action]]
 id = "screenshot-smart"
 name = "Screenshot"
-icon = ""
+icon = "󰆞"
 group = "capture"
 cmd = "screenshot"
 
 [[action]]
 id = "screenshot-window"
 name = "Screenshot Window"
-icon = ""
+icon = "󰖯"
 group = "capture"
 cmd = "screenshot windows"
 
 [[action]]
 id = "screenshot-full"
 name = "Screenshot Fullscreen"
-icon = ""
+icon = "󰹑"
 group = "capture"
 cmd = "screenshot fullscreen"
 
@@ -112,7 +112,7 @@ cmd = "ocr"
 [[action]]
 id = "color-picker"
 name = "Pick Color"
-icon = ""
+icon = "󰈊"
 group = "capture"
 keywords = ["hex", "eyedropper"]
 cmd = "pkill hyprpicker || hyprpicker -a"
@@ -185,7 +185,7 @@ cmd = "notify-send -u low \"$(battery-status)\""
 [[action]]
 id = "weather"
 name = "Weather"
-icon = ""
+icon = "󰖕"
 group = "info"
 cmd = "notify-send -u low \"$(weather)\""
 

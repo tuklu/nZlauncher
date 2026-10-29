@@ -136,12 +136,23 @@ func (s *state) refreshSettings() {
 	platform.Configure(settings.Backends)
 }
 
+// groupIcons stand in for a catalog entry that names no icon of its own.
+var groupIcons = map[string]string{
+	"power": "\U000f0425", "toggle": "\U000f0a1e", "capture": "\U000f0100", "info": "\U000f02fd",
+	"app": "\U000f003b", "tweak": "\U000f0493",
+}
+
 func (s *state) refreshCatalog() {
 	stamp := stampOf(config.CatalogPath())
 	if stamp == s.catalogStamp && s.catalogStamp != "" {
 		return
 	}
 	s.catalog, s.catalogErr = config.Load()
+	for i := range s.catalog.Actions {
+		if a := &s.catalog.Actions[i]; a.Icon == "" && a.IconName == "" {
+			a.Icon = groupIcons[a.Group]
+		}
+	}
 	// stamp after loading: Load writes the default catalog on a first run
 	s.catalogStamp = stampOf(config.CatalogPath())
 }
