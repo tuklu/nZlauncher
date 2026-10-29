@@ -1,6 +1,10 @@
 package answer
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"strings"
+)
 
 type unit struct {
 	kind   string
@@ -120,4 +124,66 @@ func convertUnits(n float64, from, to string) (Answer, bool) {
 		Name:  value + " " + b.name,
 		Hint:  fmt.Sprintf("%s %s", Format(n), a.name),
 	}, true
+}
+
+// fahrenheitCountries are where weather and ovens are in Fahrenheit.
+var fahrenheitCountries = map[string]bool{"US": true, "BS": true, "BZ": true, "KY": true, "PW": true, "FM": true, "MH": true, "LR": true}
+
+// localTemperature is the unit a bare "degrees" means here. An explicit
+// measurement locale decides; then the country of the system time zone,
+// since many people outside the US run en_US; then the language's region.
+func localTemperature() string {
+	for _, name := range []string{"LC_ALL", "LC_MEASUREMENT"} {
+		if region := localeRegion(os.Getenv(name)); region != "" {
+			return temperatureFor(region)
+		}
+	}
+	if country := zoneCountry(); country != "" {
+		return temperatureFor(country)
+	}
+	return temperatureFor(localeRegion(os.Getenv("LANG")))
+}
+
+func temperatureFor(country string) string {
+	if fahrenheitCountries[country] {
+		return "f"
+	}
+	return "c"
+}
+
+// localeRegion is "US" for "en_US.UTF-8", "" for "C" or "POSIX".
+func localeRegion(locale string) string {
+	_, rest, ok := strings.Cut(locale, "_")
+	if !ok {
+		return ""
+	}
+	region, _, _ := strings.Cut(rest, ".")
+	region, _, _ = strings.Cut(region, "@")
+	return strings.ToUpper(region)
+}
+
+// zoneCountry is the country of the system time zone, from zone1970.tab:
+// Asia/Kolkata is IN.
+func zoneCountry() string {
+	zone := os.Getenv("TZ")
+	if zone == "" {
+		if target, err := os.Readlink("/etc/localtime"); err == nil {
+			_, zone, _ = strings.Cut(target, "zoneinfo/")
+		}
+	}
+	if zone == "" {
+		return ""
+	}
+	data, err := os.ReadFile(zoneinfo + "/zone1970.tab")
+	if err != nil {
+		return ""
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		fields := strings.Split(line, "\t")
+		if len(fields) >= 3 && fields[2] == zone {
+			code, _, _ := strings.Cut(fields[0], ",")
+			return code
+		}
+	}
+	return ""
 }

@@ -74,6 +74,15 @@ func conversion(q string) (n float64, from, to string, ok bool) {
 		return 0, "", "", false
 	}
 	rest := words[used:]
+	// "44 degrees", "44°c": into the other temperature unit
+	saysDegrees := used > 1 || strings.ContainsRune(words[0], '°') // not a bare "44c"
+	if len(rest) == 0 && units[from].kind == "temp" && saysDegrees {
+		to := "c"
+		if units[from].name == "°C" {
+			to = "f"
+		}
+		return n, from, to, true
+	}
 	// "in degrees fahrenheit", "to ° f"
 	if len(rest) == 3 && conversionWords[rest[0]] && degreeWords[rest[1]] {
 		rest = []string{rest[0], rest[2]}
@@ -127,7 +136,7 @@ func amount(words []string) (n float64, unit string, used int) {
 	if len(words) > used && degreeWords[words[used]] {
 		used++
 		if len(words) == used || conversionWords[words[used]] {
-			return v, "c", used // "44 degrees in fahrenheit": celsius unless said
+			return v, localTemperature(), used // "44 degrees in fahrenheit": the local unit unless said
 		}
 	}
 	if len(words) > used {

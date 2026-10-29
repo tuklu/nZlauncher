@@ -142,3 +142,37 @@ func TestDates(t *testing.T) {
 		}
 	}
 }
+
+func TestLocalTemperature(t *testing.T) {
+	cases := []struct {
+		lcAll, lang, tz, want string
+	}{
+		{"", "en_US.UTF-8", "Asia/Kolkata", "c"},     // en_US in India: the zone decides
+		{"", "en_IN.UTF-8", "America/New_York", "f"}, // the zone wins over the language
+		{"en_US.UTF-8", "", "Asia/Kolkata", "f"},     // an explicit locale wins
+		{"", "en_US.UTF-8", "", "f"},                 // nothing else to go by
+		{"", "de_DE.UTF-8", "Europe/Berlin", "c"},
+	}
+	for _, c := range cases {
+		t.Setenv("LC_ALL", c.lcAll)
+		t.Setenv("LC_MEASUREMENT", "")
+		t.Setenv("LANG", c.lang)
+		t.Setenv("TZ", c.tz)
+		if c.tz == "" {
+			t.Setenv("TZ", "Etc/Unknown")
+		}
+		if got := localTemperature(); got != c.want {
+			t.Errorf("%+v: got %s", c, got)
+		}
+	}
+	t.Setenv("LC_ALL", "")
+	t.Setenv("TZ", "Asia/Kolkata")
+	for q, want := range map[string]string{"44 degrees": "111.2 °F", "44°c": "111.2 °F", "100 degrees f": "37.7778 °C"} {
+		if got := answer(t, q).Name; got != want {
+			t.Errorf("%q: got %q, want %q", q, got, want)
+		}
+	}
+	if got := For("44c", now, all); len(got) != 0 {
+		t.Errorf("a bare 44c is not a temperature: %+v", got)
+	}
+}
