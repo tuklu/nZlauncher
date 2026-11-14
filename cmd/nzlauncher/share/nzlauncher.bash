@@ -4,7 +4,7 @@
 _nzlauncher() {
     local cur=${COMP_WORDS[COMP_CWORD]} cword=$COMP_CWORD
     local -a words=("${COMP_WORDS[@]}")
-    local commands="bar tui gtk pick dmenu query serve setup wifi tweak focus ws help man completion"
+    local commands="bar tui gtk pick dmenu query serve setup wifi tweak catalog focus ws help man completion"
 
     if (( cword == 1 )); then
         mapfile -t COMPREPLY < <(compgen -W "$commands -h --help -V --version" -- "$cur")
@@ -38,6 +38,7 @@ _nzlauncher() {
             elif (( cword == 4 )) && [[ ${words[2]} == awake ]]; then
                 candidates="on off 1800 3600 7200"
             fi ;;
+        catalog) (( cword == 2 )) && candidates="status encrypt decrypt edit" ;;
         ws) candidates="move 1 2 3 4 5 6 7 8 9" ;;
         pick) candidates="-p -i" ;;
         help) (( cword == 2 )) && candidates=$commands ;;

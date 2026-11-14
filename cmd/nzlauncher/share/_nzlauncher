@@ -15,6 +15,7 @@ _nzlauncher_commands() {
     'setup:show what was found on this machine'
     'wifi:connect, join, disconnect or list networks'
     'tweak:power profile, do not disturb, nightlight, keep awake'
+    'catalog:encrypt or decrypt the catalog, edit it'
     'focus:focus a window by class or title'
     'ws:go to a workspace, or move the window there'
     'help:show help for a command'
@@ -71,6 +72,12 @@ _nzlauncher() {
              _values 'how long' 'on[until turned off]' 'off[let go]' \
                '1800[30 minutes]' '3600[1 hour]' '7200[2 hours]' && ret=0 ;;
       esac ;;
+    catalog)
+      (( CURRENT == 2 )) && _values 'catalog action' \
+        'status[plain or encrypted, and the key source]' \
+        'encrypt[only nzlauncher opens it]' \
+        'decrypt[back to plain text]' \
+        'edit[open it in your editor]' && ret=0 ;;
     ws)
       _values 'workspace' move 1 2 3 4 5 6 7 8 9 && ret=0 ;;
     pick)

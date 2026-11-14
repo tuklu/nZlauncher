@@ -80,6 +80,8 @@ func main() {
 		err = runWifi(args)
 	case "tweak":
 		err = runTweak(args)
+	case "catalog":
+		err = runCatalog(args)
 	case "help":
 		err = runHelp(args)
 	case "man":

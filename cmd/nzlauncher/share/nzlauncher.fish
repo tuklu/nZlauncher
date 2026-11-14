@@ -1,7 +1,7 @@
 # nzlauncher completion for fish. Network names come from the running system
 # through `nzlauncher wifi list`; everything else is static.
 
-set -l commands bar tui gtk pick dmenu query serve setup wifi tweak focus ws help man completion
+set -l commands bar tui gtk pick dmenu query serve setup wifi tweak catalog focus ws help man completion
 
 complete -c nzlauncher -f
 complete -c nzlauncher -s h -l help -d 'Show help'
@@ -17,6 +17,7 @@ complete -c nzlauncher -n "not __fish_seen_subcommand_from $commands" -a serve -
 complete -c nzlauncher -n "not __fish_seen_subcommand_from $commands" -a setup -d 'Show what was found here'
 complete -c nzlauncher -n "not __fish_seen_subcommand_from $commands" -a wifi -d 'Connect, join, disconnect, list'
 complete -c nzlauncher -n "not __fish_seen_subcommand_from $commands" -a tweak -d 'Power, dnd, nightlight, keep awake'
+complete -c nzlauncher -n "not __fish_seen_subcommand_from $commands" -a catalog -d 'Encrypt or decrypt the catalog'
 complete -c nzlauncher -n "not __fish_seen_subcommand_from $commands" -a focus -d 'Focus a window'
 complete -c nzlauncher -n "not __fish_seen_subcommand_from $commands" -a ws -d 'Go to a workspace'
 complete -c nzlauncher -n "not __fish_seen_subcommand_from $commands" -a help -d 'Show help for a command'
@@ -39,6 +40,10 @@ complete -c nzlauncher -n "__fish_seen_subcommand_from tweak; and __fish_seen_su
     -a 'screen sleep all on off'
 complete -c nzlauncher -n "__fish_seen_subcommand_from tweak; and __fish_seen_subcommand_from screen sleep all" \
     -a 'on off 1800 3600 7200'
+
+# catalog
+complete -c nzlauncher -n "__fish_seen_subcommand_from catalog; and not __fish_seen_subcommand_from status encrypt decrypt edit" \
+    -a 'status encrypt decrypt edit'
 
 # the rest
 complete -c nzlauncher -n "__fish_seen_subcommand_from ws" -a 'move 1 2 3 4 5 6 7 8 9'

@@ -53,6 +53,7 @@ Engine:
 System:
   wifi <action>        connect, join or disconnect a network; list those in range
   tweak <setting>      power profile, do not disturb, nightlight, keep awake
+  catalog <action>     encrypt or decrypt your catalog, edit it either way
   focus <window>       focus a window by class or title
   ws [move] <n>        go to workspace n, or move the focused window there
 
@@ -151,6 +152,32 @@ Change a system setting.
   normal       let go of every keep awake hold, balanced power profile
 
 example: nzlauncher tweak awake sleep 7200
+`,
+	"catalog": `usage: nzlauncher catalog status
+       nzlauncher catalog encrypt
+       nzlauncher catalog decrypt
+       nzlauncher catalog edit
+
+Keep the catalog in plain text (the default) or encrypted, so only
+nzlauncher opens it.
+
+  status    plain or encrypted, and where the key comes from
+  encrypt   catalog.toml becomes catalog.toml.enc, and the plain file goes
+  decrypt   back to catalog.toml
+  edit      open it in $VISUAL or $EDITOR; an encrypted one is decrypted to
+            $XDG_RUNTIME_DIR (memory) and encrypted again on save
+
+The key comes from [catalog] key in config.toml:
+  file          a key nzlauncher makes, in ~/.local/share/nzlauncher/catalog.key
+                (the default; keep a copy, nothing opens the catalog without it)
+  file:<path>   the same, somewhere of your choosing
+  keyring       gnome-keyring, KWallet or KeePassXC
+  op://...      a secret in 1Password; reading it asks 1Password
+  passphrase    typed once per daemon start
+
+file and keyring keep the catalog safe wherever it is copied or synced, not
+from scripts running as you, which can read the key too. op and passphrase
+do: the key needs your approval or your memory.
 `,
 	"focus": `usage: nzlauncher focus <window>
 

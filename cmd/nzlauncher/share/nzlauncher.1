@@ -121,6 +121,37 @@ The daemon holds these.
 .B tweak normal
 Let go of every keep awake hold and switch to the balanced power profile.
 .TP
+.BR "catalog status" | encrypt | decrypt | edit
+Keep the catalog in plain text, the default, or encrypted so that only
+nzlauncher opens it.
+.B encrypt
+turns catalog.toml into catalog.toml.enc and removes the plain file;
+.B decrypt
+goes back;
+.B edit
+opens it in
+.B $VISUAL
+or
+.BR $EDITOR ,
+decrypting an encrypted one to
+.B $XDG_RUNTIME_DIR
+(memory) and encrypting it again on save. The key comes from the
+.B key
+setting in the
+.B [catalog]
+table of config.toml:
+.B file
+(the default: a key nzlauncher makes and keeps apart from the config),
+.BI file: path\fR,
+.B keyring
+(the Secret Service),
+.B op://
+followed by a 1Password reference, or
+.BR passphrase .
+A key file or the keyring protects the catalog wherever it is copied or
+synced, but not from programs running as you, which can read the key too;
+1Password and a passphrase need your approval or your memory.
+.TP
 .BI "focus " window
 Focus the first window whose class or title matches.
 .TP
@@ -191,6 +222,13 @@ Settings. Moving it away once makes nzlauncher write a commented template.
 .TP
 .I ~/.config/nzlauncher/catalog.toml
 Your own actions, read fresh on every launch.
+.TP
+.I ~/.config/nzlauncher/catalog.toml.enc
+The catalog, encrypted (AES\-256\-GCM). When it is there, it is the catalog.
+.TP
+.I ~/.local/share/nzlauncher/catalog.key
+The key for an encrypted catalog with the default key setting. Keep a copy:
+without it the catalog cannot be opened.
 .TP
 .I ~/.config/nzlauncher/providers.d/
 Executable plugins: the first word of a query names one.

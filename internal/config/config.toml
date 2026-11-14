@@ -98,3 +98,16 @@
 # brightness_up = "light -A {n}"
 # brightness_down = "light -U {n}"
 # remind = "my-reminder {minutes} {text}"
+
+[catalog]
+# catalog.toml is plain text by default. `nzlauncher catalog encrypt` turns it
+# into catalog.toml.enc, which only nzlauncher opens, with the key from:
+#   "file"         a key nzlauncher makes, kept apart from the config in
+#                  ~/.local/share/nzlauncher/catalog.key (the default)
+#   "file:<path>"  the same, somewhere of your choosing (a USB stick)
+#   "keyring"      gnome-keyring, KWallet or KeePassXC
+#   "op://..."     a secret in 1Password; reading it asks 1Password
+#   "passphrase"   typed once per daemon start
+# file and keyring keep the catalog safe wherever it is copied, not from
+# scripts running as you; op and passphrase do that too.
+# key = "file"

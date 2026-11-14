@@ -45,6 +45,11 @@ type Settings struct {
 	Backends map[string]string `toml:"backends"`
 	// command -> template, over what is detected: terminal = "foot -e {cmd}"
 	Commands map[string]string `toml:"commands"`
+
+	Catalog struct {
+		// where an encrypted catalog's key comes from, see vault
+		Key string `toml:"key"`
+	} `toml:"catalog"`
 }
 
 // The [settings] block catalog.toml carried before config.toml existed.

@@ -8,10 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 
 	"github.com/tuklu/nZlauncher/internal/action"
+	"github.com/tuklu/nZlauncher/internal/vault"
 )
 
 //go:embed catalog.toml
@@ -63,14 +65,71 @@ func CatalogPath() string {
 	return filepath.Join(Dir(), "catalog.toml")
 }
 
-func Load() (Catalog, error) {
+// SealedCatalogPath is the encrypted catalog; when it is there, it is the
+// catalog and catalog.toml is not written.
+func SealedCatalogPath() string {
+	return CatalogPath() + ".enc"
+}
+
+// KeyFilePath is where [catalog] key = "file" keeps its key: with the data,
+// not the config, so a synced or committed config never carries it.
+func KeyFilePath() string {
+	return filepath.Join(DataDir(), "catalog.key")
+}
+
+// One source per key setting for the life of the process, so a daemon asks
+// for a passphrase or 1Password approval once, not on every reload.
+var catalogSources = struct {
+	sync.Mutex
+	bySpec map[string]vault.Source
+}{bySpec: map[string]vault.Source{}}
+
+// CatalogSource is the key source config.toml's [catalog] key names.
+func CatalogSource() (vault.Source, error) {
+	settings, _ := LoadSettings()
+	spec := settings.Catalog.Key
+	catalogSources.Lock()
+	defer catalogSources.Unlock()
+	if src, ok := catalogSources.bySpec[spec]; ok {
+		return src, nil
+	}
+	src, err := vault.ParseSource(spec, KeyFilePath())
+	if err != nil {
+		return nil, err
+	}
+	catalogSources.bySpec[spec] = src
+	return src, nil
+}
+
+// CatalogText is the catalog's TOML, decrypted when it is sealed. The first
+// run writes the default catalog in the clear.
+func CatalogText() ([]byte, error) {
+	if sealed, err := os.ReadFile(SealedCatalogPath()); err == nil {
+		src, err := CatalogSource()
+		if err != nil {
+			return nil, err
+		}
+		plain, err := vault.Open(sealed, src)
+		if err != nil {
+			return nil, fmt.Errorf("encrypted catalog: %w", err)
+		}
+		return plain, nil
+	}
 	path := CatalogPath()
 	if _, err := os.Stat(path); err != nil {
 		os.MkdirAll(filepath.Dir(path), 0o755)
 		os.WriteFile(path, defaultCatalog, 0o644)
 	}
+	return os.ReadFile(path)
+}
+
+func Load() (Catalog, error) {
+	text, err := CatalogText()
+	if err != nil {
+		return Catalog{}, fmt.Errorf("catalog: %w", err)
+	}
 	var c Catalog
-	if _, err := toml.DecodeFile(path, &c); err != nil {
+	if _, err := toml.Decode(string(text), &c); err != nil {
 		return Catalog{}, fmt.Errorf("catalog: %w", err)
 	}
 	for i, a := range c.Actions {

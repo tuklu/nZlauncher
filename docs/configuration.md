@@ -180,6 +180,40 @@ open = "handlr open {target}"
 `nzlauncher setup` lists every command and what decided it: `config.toml`,
 the program it found, or `fallback`.
 
+### Encrypting the catalog
+
+The catalog is plain TOML by default, which is the simplest thing to edit
+and back up. If it holds commands you would rather keep to yourself,
+`nzlauncher catalog encrypt` turns it into `catalog.toml.enc`
+(AES-256-GCM), which only nzlauncher opens; a changed or damaged file is
+refused, not misread. `nzlauncher catalog edit` opens it in `$EDITOR`,
+decrypted to `$XDG_RUNTIME_DIR` (memory), and encrypts it again on save.
+`nzlauncher catalog decrypt` goes back to plain text, and `status` says
+which it is.
+
+The key comes from `[catalog] key` in config.toml:
+
+| key | Where the key lives | Prompts | Who can read the catalog |
+|---|---|---|---|
+| `"file"` (default) | a key nzlauncher makes, `~/.local/share/nzlauncher/catalog.key` | never | anything running as you; not a copy of your config, a synced folder or a repo without the key file |
+| `"file:<path>"` | the same, where you say (a USB stick) | never | the same, and nothing while the stick is out |
+| `"keyring"` | gnome-keyring, KWallet or KeePassXC | the keyring's own, if locked | the same as a key file |
+| `"op://vault/item/field"` | any secret in 1Password | 1Password's approval, once per daemon start | only what you approve |
+| `"passphrase"` | in your head | once per daemon start | only you |
+
+The daemon asks once and keeps the key in memory, so after that the
+encrypted catalog is as quick as a plain one. Keep a copy of a key file:
+nothing opens the catalog without it.
+
+What encryption cannot do on Linux: a program running as you can do
+whatever nzlauncher does without asking you, including starting it and
+asking the daemon for results. So a key that needs no prompt protects the
+catalog at rest (copies, sync, backups, other users), and only a key that
+needs you (op, passphrase) keeps it from your own programs, at one prompt
+per login. The strongest habit is to keep secrets out of the catalog
+altogether and read them when a command runs, for example
+`cmd = "op run -- deploy"` or `secret-tool lookup ...`.
+
 ## Icon libraries
 
 The TUI shows a glyph next to each app. The glyphs come from an icon

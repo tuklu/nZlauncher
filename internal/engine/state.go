@@ -173,7 +173,7 @@ func installed(a action.Action) bool {
 }
 
 func (s *state) refreshCatalog() {
-	stamp := stampOf(config.CatalogPath())
+	stamp := stampOf(config.CatalogPath(), config.SealedCatalogPath())
 	if stamp == s.catalogStamp && s.catalogStamp != "" {
 		return
 	}
@@ -184,7 +184,7 @@ func (s *state) refreshCatalog() {
 		}
 	}
 	// stamp after loading: Load writes the default catalog on a first run
-	s.catalogStamp = stampOf(config.CatalogPath())
+	s.catalogStamp = stampOf(config.CatalogPath(), config.SealedCatalogPath())
 }
 
 // Apps depend on the .desktop directories and on the icon library they are
