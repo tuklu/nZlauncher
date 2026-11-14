@@ -77,6 +77,11 @@ func QueryFor(raw, focusedClass string) ([]action.Action, error) {
 		} else {
 			pool := append(actions, cache.windowList()...)
 			matched := withFiles(openOnce(rank(pool, stats, ctx, q)), q)
+			// nothing matched: the sentence it nearly was ("stay unlok"), before
+			// the web search
+			if len(matched) == 0 {
+				matched = suggestions(q)
+			}
 			ranked = append(append(ranked, matched...), fallbacks(raw, ctx.settings)...)
 		}
 	}

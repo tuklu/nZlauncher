@@ -228,3 +228,55 @@ func TestStrictVocabulary(t *testing.T) {
 		}
 	}
 }
+
+func TestLoosePhrases(t *testing.T) {
+	cases := map[string][]string{
+		"stay unlock":              {"awake"},
+		"keep the screen unlokced": {"awake"},
+		"dont slep":                {"nosleep"},
+		"lock but dont sleeep":     {"nosleep"},
+		"keep everythign on":       {"awakeall"},
+		"stay on":                  {"nosleep"},     // exact still wins
+		"stay one":                 {"stay", "one"}, // short words stay exact
+		"keep notes":               {"keep", "notes"},
+	}
+	for q, want := range cases {
+		var got []string
+		for _, w := range Words(q) {
+			got = append(got, w.Canon)
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("%q: got %v, want %v", q, got, want)
+		}
+	}
+}
+
+func TestSuggest(t *testing.T) {
+	cases := map[string]string{
+		"unlock":         "awake",
+		"screen stay on": "awake",
+		"firefox":        "",
+		"keep notes":     "",
+	}
+	// "sleep" is either way round: both readings come first
+	if s := Suggest("sleep"); len(s) < 2 || !slices.Contains(s[:2], "nosleep") || !slices.Contains(s[:2], "awakeoff") {
+		t.Errorf("sleep: got %v", s)
+	}
+	for q, want := range cases {
+		got := ""
+		if s := Suggest(q); len(s) > 0 {
+			got = s[0]
+		}
+		if got != want {
+			t.Errorf("%q: got %q (%v), want %q", q, got, Suggest(q), want)
+		}
+	}
+}
+
+func TestWeakWordsByStem(t *testing.T) {
+	for _, w := range []string{"keeping", "power", "never", "mode", "allowed"} {
+		if !weakWords[stem(w)] {
+			t.Errorf("%q is not weak", w)
+		}
+	}
+}

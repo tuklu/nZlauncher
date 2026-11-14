@@ -113,6 +113,22 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 	return nil
 }
 
+// suggestions are the rows of the two intents a query comes closest to
+// without matching one: a typo or a phrasing the grammar does not know still
+// lands on something to pick.
+func suggestions(q string) []action.Action {
+	var acts []action.Action
+	for i, canon := range intent.Suggest(q) {
+		if i == 2 {
+			break
+		}
+		if fn := domainProvider(canon); fn != nil {
+			acts = append(acts, fn("")...)
+		}
+	}
+	return acts
+}
+
 var reminderWords = map[string]bool{"remind": true, "reminder": true, "timer": true, "alarm": true, "remember": true}
 
 // levelWords finds volume or brightness in a sentence and returns the

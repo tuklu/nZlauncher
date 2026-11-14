@@ -153,35 +153,72 @@ var phrases = []struct {
 }
 
 // joinPhrases folds the phrases among the typed tokens into single tokens.
+// At each position an exact phrase wins; failing that, a loose one: every
+// word the same, another form of it ("unlock" for "unlocked") or a slip of
+// the finger ("dont slep"). The words around each other make a loose match
+// safe where correcting one word alone would not be.
 func joinPhrases(typed []string) []string {
 	var out []string
 	for i := 0; i < len(typed); i++ {
-		joined := false
-		for _, p := range phrases {
-			n := len(p.words)
-			if i+n > len(typed) {
-				continue
-			}
-			match := true
-			for k, w := range p.words {
-				// "don’t" from a phone keyboard is "don't"
-				if strings.ReplaceAll(strings.ToLower(typed[i+k]), "’", "'") != w {
-					match = false
-					break
-				}
-			}
-			if match {
-				out = append(out, "\x00"+p.canon+"\x00"+strings.Join(typed[i:i+n], " "))
-				i += n - 1
-				joined = true
+		n, canon := matchPhrase(typed[i:], exactWord)
+		if n == 0 {
+			n, canon = matchPhrase(typed[i:], looseWord)
+		}
+		if n == 0 {
+			out = append(out, typed[i])
+			continue
+		}
+		out = append(out, "\x00"+canon+"\x00"+strings.Join(typed[i:i+n], " "))
+		i += n - 1
+	}
+	return out
+}
+
+// matchPhrase finds the first phrase at the start of typed, with how many
+// tokens it takes.
+func matchPhrase(typed []string, same func(typed, want string) bool) (int, string) {
+	for _, p := range phrases {
+		if len(p.words) > len(typed) {
+			continue
+		}
+		match := true
+		for k, w := range p.words {
+			if !same(typed[k], w) {
+				match = false
 				break
 			}
 		}
-		if !joined {
-			out = append(out, typed[i])
+		if match {
+			return len(p.words), p.canon
 		}
 	}
-	return out
+	return 0, ""
+}
+
+// phraseToken lowercases a token and makes "don’t" from a phone keyboard "don't".
+func phraseToken(t string) string {
+	return strings.ReplaceAll(strings.ToLower(t), "’", "'")
+}
+
+func exactWord(typed, want string) bool {
+	return phraseToken(typed) == want
+}
+
+// looseWord: short words ("on", "no", "to") are a different word one letter
+// off, so they stay exact.
+func looseWord(typed, want string) bool {
+	t := phraseToken(typed)
+	if t == want {
+		return true
+	}
+	if len(want) < 4 || len(t) < 3 {
+		return false
+	}
+	if stem(t) == stem(want) {
+		return true
+	}
+	_, ok := closenessWith(t, want, Budget(len(want)), 1)
+	return ok
 }
 
 // Words splits q into tokens with phrases, synonyms and typos resolved.
