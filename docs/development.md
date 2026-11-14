@@ -179,8 +179,16 @@ Commits are conventional: `feat:`, `fix:`, `refactor:`, `docs:`,
 ## Releases
 
 ```sh
-git tag v0.4.3 && git push origin v0.4.3
+git tag v0.4.6-rc1 && git push origin v0.4.6-rc1   # test first
+git tag v0.4.6 && git push origin v0.4.6           # then release
 ```
+
+A tag with a dash (`-rc1`, `-beta`) makes a GitHub prerelease with the
+binaries and skips the AUR, so a build can be tried before anyone's
+`yay -Syu` picks it up. Its PKGBUILD is not meant to be built (pacman
+versions cannot hold a dash); test the attached binary, or build locally
+with `go build -o ~/.local/bin/nzlauncher ./cmd/nzlauncher` and a user
+drop-in that points `nzlauncher.service` at it.
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`. It builds on
 Ubuntu LTS (older glibc, so the binary runs on more distros) and attaches
