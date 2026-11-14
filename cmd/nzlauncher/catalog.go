@@ -55,6 +55,12 @@ func catalogEncrypt() error {
 	if sealed() {
 		return errors.New("the catalog is encrypted already")
 	}
+	// a dotfiles setup links the catalog in from a repo: encrypting the link
+	// would leave the original in plain text, and wiping it would wipe the repo's
+	if target, err := os.Readlink(config.CatalogPath()); err == nil {
+		return fmt.Errorf("%s links to %s, which would stay in plain text: "+
+			"replace the link with a copy of the file first", config.CatalogPath(), target)
+	}
 	plain, err := os.ReadFile(config.CatalogPath())
 	if err != nil {
 		return err

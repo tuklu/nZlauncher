@@ -189,7 +189,9 @@ and back up. If it holds commands you would rather keep to yourself,
 refused, not misread. `nzlauncher catalog edit` opens it in `$EDITOR`,
 decrypted to `$XDG_RUNTIME_DIR` (memory), and encrypts it again on save.
 `nzlauncher catalog decrypt` goes back to plain text, and `status` says
-which it is.
+which it is. A catalog linked in from a dotfiles repo is left alone:
+encrypting the link would leave the repo's copy in plain text, so replace
+the link with a copy first, or keep that machine's catalog plain.
 
 The key comes from `[catalog] key` in config.toml:
 

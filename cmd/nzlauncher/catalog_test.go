@@ -55,3 +55,27 @@ func TestCatalogEncryptLoadDecrypt(t *testing.T) {
 		t.Errorf("after decrypting: %v", err)
 	}
 }
+
+// A catalog linked in from a dotfiles repo is never wiped through the link.
+func TestCatalogEncryptRefusesALink(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, "data"))
+	repo := filepath.Join(home, "repo-catalog.toml")
+	text := "[[action]]\nid = \"x\"\nname = \"X\"\ncmd = \"true\"\n"
+	os.WriteFile(repo, []byte(text), 0o644)
+	os.MkdirAll(filepath.Dir(config.CatalogPath()), 0o755)
+	if err := os.Symlink(repo, config.CatalogPath()); err != nil {
+		t.Fatal(err)
+	}
+	if err := catalogEncrypt(); err == nil || !strings.Contains(err.Error(), "links to") {
+		t.Fatalf("got %v", err)
+	}
+	if got, _ := os.ReadFile(repo); string(got) != text {
+		t.Error("the linked file was changed")
+	}
+	if _, err := os.Stat(config.SealedCatalogPath()); !os.IsNotExist(err) {
+		t.Error("an encrypted catalog was written anyway")
+	}
+}
