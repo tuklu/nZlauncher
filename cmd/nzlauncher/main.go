@@ -74,7 +74,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nzlauncher bar [query] | tui [query] | gtk [query] | pick | dmenu | query [text] | serve | setup | wifi connect|disconnect [ssid] | tweak power|dnd|nightlight|awake <value> | focus <window> | ws [move] <n>")
+	fmt.Fprintln(os.Stderr, "usage: nzlauncher bar [query] | tui [query] | gtk [query] | pick | dmenu | query [text] | serve | setup | wifi connect|join|disconnect [ssid] | tweak power|dnd|nightlight|awake <value> | focus <window> | ws [move] <n>")
 	os.Exit(2)
 }
 

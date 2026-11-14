@@ -90,7 +90,7 @@ The first word can send the query to one provider:
 
 | Type | You get |
 |---|---|
-| `wifi`, `net` | networks in range with signal, the radio toggle; known and open ones connect directly, a new secured one opens a terminal that asks for the passphrase. Works with iwd and NetworkManager |
+| `wifi`, `net` | networks in range with signal, the radio toggle; known and open ones connect directly, a new secured one asks for the passphrase in a dialog (iwd, with zenity or kdialog; nzlauncher answers iwd as its agent, so the passphrase never reaches a command line), otherwise a terminal with the service's own tool asks. Works with iwd and NetworkManager |
 | `bt`, `bluetooth` | paired devices and their connection state, power toggle |
 | `audio`, `output` | output devices, current one marked |
 | `vol 40`, `vol +10`, `volume` | set volume directly or by a step, presets, mute and unmute |

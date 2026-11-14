@@ -11,8 +11,9 @@ import (
 )
 
 // wifi / net: the radio toggle and the networks in range, from iwd or
-// NetworkManager. Known and open networks connect directly; a new secured one
-// opens a terminal where the service's own tool asks for the passphrase.
+// NetworkManager. Known and open networks connect directly. A new secured one
+// asks for the passphrase in a dialog (nzlauncher wifi join, iwd), and falls
+// back to a terminal with the service's own tool where that cannot work.
 func Wifi(q string) []action.Action {
 	if !On("wifi") {
 		return nil
@@ -51,10 +52,7 @@ func Wifi(q string) []action.Action {
 				" || notify-send " + shell.Quote("Could not connect "+n.SSID)
 		default:
 			a.Name = "Connect " + n.SSID
-			a.Cmd = portable.Terminal(joinCommand(state, n.SSID))
-			if a.Cmd == "" {
-				continue // no terminal to ask for the passphrase in
-			}
+			a.Cmd = joinAction(state, n.SSID)
 		}
 		acts = append(acts, a)
 	}
@@ -64,6 +62,21 @@ func Wifi(q string) []action.Action {
 		return append(acts, tuiTail("nmtui", "nmtui", "full WiFi manager")...)
 	}
 	return append(acts, tuiTail("impala", "Impala", "full WiFi manager")...)
+}
+
+// joinAction asks for the passphrase in a dialog; where nzlauncher cannot
+// (exit 3: NetworkManager, no dialog), the backend's tool asks in a terminal.
+// Exit 4 is a dialog closed on purpose, so it says nothing.
+func joinAction(state wifi.State, ssid string) string {
+	q := shell.Quote(ssid)
+	fallback := portable.Terminal(joinCommand(state, ssid))
+	if fallback == "" {
+		fallback = "notify-send " + shell.Quote("No terminal to ask for the passphrase of "+ssid)
+	}
+	return "nzlauncher wifi join " + q + "; rc=$?; " +
+		"if [ $rc -eq 0 ]; then notify-send -u low " + shell.Quote("Connected "+ssid) + "; " +
+		"elif [ $rc -eq 3 ]; then " + fallback + "; " +
+		"elif [ $rc -ne 4 ]; then notify-send " + shell.Quote("Could not connect "+ssid) + "; fi"
 }
 
 // joinCommand asks for the passphrase in a terminal, with the backend's tool.
