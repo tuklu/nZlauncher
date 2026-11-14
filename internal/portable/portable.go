@@ -130,7 +130,12 @@ func choicesFor(key string) []choice {
 		}
 		return cs
 	case "volume":
-		return []choice{{"wpctl", "wpctl set-volume @DEFAULT_AUDIO_SINK@ {n}%"}, {"pactl", "pactl set-sink-volume @DEFAULT_SINK@ {n}%"}}
+		// neZha's osd shows the new level: a zero step draws it without changing it
+		return []choice{
+			{"osd", "wpctl set-volume @DEFAULT_AUDIO_SINK@ {n}% && osd --output-volume +0"},
+			{"wpctl", "wpctl set-volume @DEFAULT_AUDIO_SINK@ {n}%"},
+			{"pactl", "pactl set-sink-volume @DEFAULT_SINK@ {n}%"},
+		}
 	case "volume_up", "volume_down":
 		sign, wp := "+", "+"
 		if key == "volume_down" {
