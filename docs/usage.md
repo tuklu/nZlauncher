@@ -21,6 +21,36 @@ Other commands:
 | `nzlauncher query [text]` | print results as TSV (`id`, `cmd`, `display`), for scripts |
 | `nzlauncher pick [-p prompt] [-i]` | dmenu replacement, see below |
 | `nzlauncher dmenu [dmenu flags]` | drop-in for dmenu, rofi `-dmenu`, walker `--dmenu` |
+| `nzlauncher wifi connect\|join\|disconnect\|list` | drive Wi-Fi from scripts |
+| `nzlauncher tweak <setting> <value>` | power profile, do not disturb, nightlight, keep awake |
+
+Every command takes `-h` or `--help`, and `nzlauncher help <command>` shows
+the same. `nzlauncher --version` (`-V`) prints the version. The full
+reference is the manual page, `man nzlauncher`.
+
+## Command line
+
+The command line follows the usual conventions, so it scripts like any
+other tool:
+
+- help goes to standard output and exits 0; a usage error prints what was
+  wrong, the command's synopsis and a hint to standard error, and exits 2;
+  a failure exits 1. `wifi join` adds 3 (cannot ask for a passphrase here)
+  and 4 (the dialog was closed).
+- `--` ends the options: `nzlauncher query -- --help` searches for "--help".
+- `nzlauncher query` prints plain tab-separated lines, nothing else, so it
+  pipes: `nzlauncher query volume 40 | head -1 | cut -f2 | sh`.
+
+Tab completion comes for zsh, bash and fish, with the packages installing
+them. It knows the commands, their arguments, power profiles, keep awake
+holds and the Wi-Fi networks in range. Without a package:
+
+```sh
+nzlauncher completion zsh > ~/.local/share/zsh/site-functions/_nzlauncher
+source <(nzlauncher completion bash)
+nzlauncher completion fish > ~/.config/fish/completions/nzlauncher.fish
+nzlauncher man | man -l -          # read the manual
+```
 
 ## Keys
 
