@@ -39,7 +39,8 @@ jobs:
 
       - name: build
         run: |
-          CGO_ENABLED=0 go build -ldflags "-s -w" -o nzlauncher-linux-amd64 ./cmd/nzlauncher
+          v="-X main.version=${GITHUB_REF_NAME#v}"
+          CGO_ENABLED=0 go build -ldflags "-s -w $v" -o nzlauncher-linux-amd64 ./cmd/nzlauncher
           go build -ldflags "-s -w" -o nzlauncher-gtk-linux-amd64 ./cmd/nzlauncher-gtk
 
       # nzlauncher-bin PKGBUILD with this version and real checksums, ready
