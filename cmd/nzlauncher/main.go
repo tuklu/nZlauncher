@@ -28,57 +28,88 @@ func main() {
 		return
 	}
 	if len(os.Args) < 2 {
-		usage()
+		printHelp(os.Stderr, "")
+		os.Exit(2)
 	}
-	config.Migrate()
+	command, args := os.Args[1], os.Args[2:]
+	switch command {
+	case "-h", "--help":
+		printHelp(os.Stdout, "")
+		return
+	case "-V", "--version":
+		fmt.Println("nzlauncher", versionString())
+		return
+	}
+	if _, known := commandHelp[command]; known && command != "help" && wantsHelp(args) {
+		printHelp(os.Stdout, command)
+		return
+	}
+	args = withoutDashDash(args)
+	// help, man and completion run at package time, with no config to touch
+	if command != "help" && command != "man" && command != "completion" {
+		config.Migrate()
+	}
 
 	var err error
-	switch os.Args[1] {
+	switch command {
 	case "query":
-		err = runQuery(strings.Join(os.Args[2:], " "))
+		err = runQuery(strings.Join(args, " "))
 	case "tui":
-		err = tui.Run(strings.Join(os.Args[2:], " "))
+		err = tui.Run(strings.Join(args, " "))
 	case "bar":
-		err = runBar(strings.Join(os.Args[2:], " "))
+		err = runBar(strings.Join(args, " "))
 	case "dmenu":
-		err = runDmenu(os.Args[2:])
+		err = runDmenu(args)
 	case "pick":
-		err = runPick(os.Args[2:])
+		err = runPick(args)
 	case "gtk":
-		err = runGTK(os.Args[2:])
+		err = runGTK(args)
 	case "serve":
-		err = server.Serve()
+		err = noArgs("serve", args, server.Serve)
 	case "focus":
-		if len(os.Args) < 3 {
-			usage()
+		if len(args) != 1 {
+			err = misuse("focus", "focus takes one window")
+			break
 		}
-		err = compositor.Focus(os.Args[2])
+		err = compositor.Focus(args[0])
 	case "ws":
-		err = runWorkspace(os.Args[2:])
+		err = runWorkspace(args)
 	case "setup":
-		err = runSetup()
+		err = noArgs("setup", args, runSetup)
 	case "wifi":
-		err = runWifi(os.Args[2:])
+		err = runWifi(args)
 	case "tweak":
-		err = runTweak(os.Args[2:])
+		err = runTweak(args)
+	case "help":
+		err = runHelp(args)
+	case "man":
+		err = runMan(args)
+	case "completion":
+		err = runCompletion(args)
 	case "after-close":
-		err = shell.RunAfterClose(os.Args[2:])
+		// internal: the faces hand a command to run once they have closed
+		err = shell.RunAfterClose(args)
 	default:
-		usage()
+		fmt.Fprintf(os.Stderr, "nzlauncher: no command %q\nTry 'nzlauncher --help'.\n", command)
+		os.Exit(2)
 	}
 
+	if reportUsage(err) {
+		os.Exit(2)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "nzlauncher:", err)
 		os.Exit(1)
 	}
 }
 
-func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nzlauncher bar [query] | tui [query] | gtk [query] | pick | dmenu | query [text] | serve | setup | wifi connect|join|disconnect [ssid] | tweak power|dnd|nightlight|awake <value> | focus <window> | ws [move] <n>")
-	os.Exit(2)
+func noArgs(command string, args []string, run func() error) error {
+	if len(args) != 0 {
+		return misuse(command, "%s takes no arguments", command)
+	}
+	return run()
 }
 
-// The resident daemon answers when it runs; otherwise the engine runs here.
 func runQuery(raw string) error {
 	resp, err := server.Ask(server.Request{Op: "query", Q: raw, Focused: os.Getenv("NZ_FOCUSED")})
 	if err != nil && resp.Error != "" {
@@ -134,7 +165,7 @@ func runWorkspace(args []string) error {
 		args = args[1:]
 	}
 	if len(args) != 1 {
-		return fmt.Errorf("usage: nzlauncher ws [move] <n>")
+		return misuse("ws", "ws takes a workspace number")
 	}
 	n, err := strconv.Atoi(args[0])
 	if err != nil || n < 1 {

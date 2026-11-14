@@ -32,8 +32,13 @@ func runWifi(args []string) error {
 		return runJoin(args[1])
 	case len(args) == 1 && args[0] == "disconnect":
 		return wifi.Disconnect()
+	case len(args) == 1 && args[0] == "list":
+		for _, n := range wifi.Current().Networks {
+			fmt.Println(n.SSID)
+		}
+		return nil
 	}
-	return fmt.Errorf("usage: nzlauncher wifi connect|join <ssid> | disconnect")
+	return misuse("wifi", "wifi takes connect, join, disconnect or list")
 }
 
 func runJoin(ssid string) error {

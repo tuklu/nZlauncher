@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/tuklu/nZlauncher/internal/config"
@@ -10,9 +9,6 @@ import (
 	"github.com/tuklu/nZlauncher/internal/server"
 	"github.com/tuklu/nZlauncher/internal/tweaks"
 )
-
-const tweakUsage = "usage: nzlauncher tweak power <profile> | dnd on|off | nightlight <kelvin>|off" +
-	" | awake [screen|sleep|all] on|off|<seconds> | normal"
 
 // runTweak is what the tweak results run.
 func runTweak(args []string) error {
@@ -24,7 +20,7 @@ func runTweak(args []string) error {
 	case len(args) == 3 && args[0] == "awake":
 		return askAwake(args[1] + ":" + awakeValue(args[2]))
 	case len(args) != 2:
-		return errors.New(tweakUsage)
+		return misuse("tweak", "tweak takes a setting and a value")
 	}
 	what, value := args[0], args[1]
 	switch what {
@@ -38,13 +34,13 @@ func runTweak(args []string) error {
 		}
 		kelvin, err := strconv.Atoi(value)
 		if err != nil || kelvin < 1000 || kelvin > 10000 {
-			return fmt.Errorf("nightlight takes off or 1000 to 10000 kelvin")
+			return misuse("tweak", "nightlight takes off or 1000 to 10000 kelvin")
 		}
 		return tweaks.SetNightlight(kelvin)
 	case "awake":
 		return askAwake(awakeValue(value))
 	}
-	return errors.New(tweakUsage)
+	return misuse("tweak", "no setting %q", what)
 }
 
 func awakeValue(v string) string {

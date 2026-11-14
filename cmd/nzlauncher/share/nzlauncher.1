@@ -1,0 +1,244 @@
+.TH NZLAUNCHER 1 2026-11-14 nzlauncher "User Commands"
+.SH NAME
+nzlauncher \- a launcher that reads sentences and learns how you use it
+.SH SYNOPSIS
+.B nzlauncher
+.I command
+.RI [ arguments ]
+.br
+.B nzlauncher
+.BR \-h " | " \-\-help " | " \-V " | " \-\-version
+.SH DESCRIPTION
+.B nzlauncher
+opens applications, windows and files, and changes system settings, from a
+single input. What is typed is read as a sentence, in any word order and
+with typos forgiven:
+.IR "wifi off" ,
+.IR "volume 40" ,
+.IR "pdfs from last week" ,
+.IR "remind me in 20 minutes to stretch" ,
+.IR "don't sleep until 6pm" .
+A near miss suggests what it meant; anything unmatched falls back to a
+calculation, a command to run or a web search.
+.PP
+Results are ranked by what you pick, when and where: the hour, the Wi\-Fi
+network and the window you came from. A daemon
+.RB ( "nzlauncher serve" )
+keeps the engine warm and holds what has to outlive one command, such as
+keep awake. The faces (terminal and GTK) and the scripting commands all talk
+to it, and work without it at a cost in speed.
+.SH COMMANDS
+.SS Faces
+.TP
+.BR bar " [\fIquery\fR]"
+Open the launcher with
+.I query
+typed in, or close it if it is open, in the face the
+.B interface
+setting of config.toml picks. Bind this to a key.
+.TP
+.BR tui " [\fIquery\fR]"
+Open the terminal face in the current terminal.
+.TP
+.BR gtk " [\fIquery\fR]"
+Open the GTK face. Needs
+.B nzlauncher\-gtk
+next to this binary or on
+.BR PATH .
+.SS Pickers
+.TP
+.BR pick " [\fB\-p\fR \fIprompt\fR] [\fB\-i\fR]"
+Read lines from standard input, let the user choose one in a floating
+picker, and print it.
+.B \-i
+also accepts typed text that matches no line. A closed picker prints
+nothing.
+.TP
+.BR dmenu " [\fB\-p\fR \fIprompt\fR] [\fIdmenu flags\fR]"
+A dmenu replacement: prints the choice, or the typed text. Other dmenu flags
+are accepted and ignored. Linked or copied as
+.BR dmenu ,
+the binary is this command.
+.SS Engine
+.TP
+.BR query " [\fItext\fR]"
+Print the results for
+.I text
+one per line: id, command and display, separated by tabs.
+.TP
+.B serve
+Run the daemon. The systemd user unit
+.B nzlauncher.service
+does this.
+.TP
+.B setup
+Show what was found on this machine and what drives each capability.
+.SS System
+.TP
+.BI "wifi connect " ssid
+Connect to a known or open network.
+.TP
+.BI "wifi join " ssid
+Join a new secured network, asking for the passphrase in a dialog (iwd, with
+zenity or kdialog). nzlauncher answers iwd as its agent, so the passphrase
+never reaches a command line.
+.TP
+.B wifi disconnect
+Leave the current network.
+.TP
+.B wifi list
+Print the networks in range, one name per line.
+.TP
+.BI "tweak power " profile
+Switch the power profile:
+.BR power\-saver ,
+.BR balanced ,
+.BR performance .
+Needs power\-profiles\-daemon, tlp\-pd or tuned\-ppd.
+.TP
+.BR "tweak dnd on" | off
+Do not disturb, on mako, swaync or dunst.
+.TP
+.BR "tweak nightlight " \fIkelvin\fR | off
+Warm the screen, 1000 to 10000 kelvin, with hyprsunset.
+.TP
+.BR "tweak awake " [ screen | sleep | all "] " on | off | \fIseconds\fR
+Keep awake.
+.B screen
+stops idle locking and blanking.
+.B sleep
+keeps the machine from suspending, lid closed included, while the screen may
+still lock.
+.B all
+is both. A number of seconds holds it for that long,
+.B on
+until turned off;
+.B off
+lets go. Without a hold name it is
+.BR screen .
+The daemon holds these.
+.TP
+.B tweak normal
+Let go of every keep awake hold and switch to the balanced power profile.
+.TP
+.BI "focus " window
+Focus the first window whose class or title matches.
+.TP
+.BR ws " [\fBmove\fR] \fIn\fR"
+Go to workspace
+.IR n ,
+or with
+.BR move ,
+send the focused window there.
+.SS Help
+.TP
+.BR help " [\fIcommand\fR]"
+Print the overview, or a command's arguments. Every command also takes
+.B \-h
+and
+.BR \-\-help .
+.TP
+.B man
+Print this page as roff.
+.TP
+.BR completion " " zsh | bash | fish
+Print a completion script.
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Print usage and exit.
+.TP
+.BR \-V ", " \-\-version
+Print the version and exit.
+.TP
+.B \-\-
+End the options: what follows is an argument even if it starts with a
+dash, as in
+.BR "nzlauncher query \-\- \-\-help" .
+.SH EXIT STATUS
+.TP
+.B 0
+Success, or a picker closed without a choice.
+.TP
+.B 1
+A failure: the service did not answer, the network refused, and the like.
+.TP
+.B 2
+A usage error.
+.TP
+.B 3
+.B wifi join
+cannot ask for a passphrase here; use the Wi\-Fi service's own tool.
+.TP
+.B 4
+.B wifi join
+was canceled in the dialog.
+.SH ENVIRONMENT
+.TP
+.B NZ_FOCUSED
+The class of the window the user came from, which feeds the ranking. The
+bar sets it for its faces.
+.TP
+.B NZ_NO_IMAGES
+When set, the terminal face draws no image previews.
+.TP
+.BR XDG_CONFIG_HOME ", " XDG_DATA_HOME ", " XDG_CACHE_HOME ", " XDG_RUNTIME_DIR
+Where the files below live.
+.SH FILES
+.TP
+.I ~/.config/nzlauncher/config.toml
+Settings. Moving it away once makes nzlauncher write a commented template.
+.TP
+.I ~/.config/nzlauncher/catalog.toml
+Your own actions, read fresh on every launch.
+.TP
+.I ~/.config/nzlauncher/providers.d/
+Executable plugins: the first word of a query names one.
+.TP
+.I ~/.local/share/nzlauncher/
+What has been learned: events.jsonl and frecency.json.
+.TP
+.I ~/.cache/nzlauncher/
+What can be made again: decoded images, rates.
+.TP
+.I $XDG_RUNTIME_DIR/nzlauncher.sock
+The daemon's socket.
+.SH EXAMPLES
+Open the launcher on a key, in hyprland.lua:
+.PP
+.RS
+.nf
+hl.bind("SUPER + SPACE", hl.dsp.exec_cmd("nzlauncher bar"))
+.fi
+.RE
+.PP
+Choose a wallpaper in a script:
+.PP
+.RS
+.nf
+ls ~/Pictures | nzlauncher pick \-p Wallpaper
+.fi
+.RE
+.PP
+Keep the machine running for two hours with the screen allowed to lock:
+.PP
+.RS
+.nf
+nzlauncher tweak awake sleep 7200
+.fi
+.RE
+.PP
+Run the top result for a sentence:
+.PP
+.RS
+.nf
+nzlauncher query volume 40 | head \-1 | cut \-f2 | sh
+.fi
+.RE
+.SH SEE ALSO
+.BR systemctl (1),
+.BR iwctl (1),
+.BR hyprsunset (1),
+.BR fzf (1)
+.PP
+Documentation: https://github.com/tuklu/nZlauncher/wiki

@@ -1,0 +1,86 @@
+#compdef nzlauncher
+
+# nzlauncher completion for zsh. Network names come from the running system
+# through `nzlauncher wifi list`; everything else is static.
+
+_nzlauncher_commands() {
+  local -a commands=(
+    'bar:open the launcher, in the face config.toml picks'
+    'tui:open the terminal face'
+    'gtk:open the GTK face'
+    'pick:choose a line from stdin and print it'
+    'dmenu:a dmenu-compatible picker'
+    'query:print results, tab separated'
+    'serve:run the daemon'
+    'setup:show what was found on this machine'
+    'wifi:connect, join, disconnect or list networks'
+    'tweak:power profile, do not disturb, nightlight, keep awake'
+    'focus:focus a window by class or title'
+    'ws:go to a workspace, or move the window there'
+    'help:show help for a command'
+    'man:print the manual page'
+    'completion:print a completion script'
+  )
+  _describe -t commands 'nzlauncher command' commands
+}
+
+_nzlauncher_networks() {
+  local -a networks=(${(f)"$(nzlauncher wifi list 2>/dev/null)"})
+  # a colon would split the name from a description
+  networks=(${networks//:/\\:})
+  _describe -t networks 'network' networks
+}
+
+_nzlauncher() {
+  local curcontext=$curcontext state line ret=1
+  _arguments -C \
+    '(- *)'{-h,--help}'[show help]' \
+    '(- *)'{-V,--version}'[show the version]' \
+    '1: :_nzlauncher_commands' \
+    '*:: :->args' && ret=0
+
+  [[ $state == args ]] || return ret
+  case $words[1] in
+    wifi)
+      case $CURRENT in
+        2) _values 'wifi action' \
+             'connect[a known or open network]' \
+             'join[a new secured network, asks for the passphrase]' \
+             'disconnect[the current network]' \
+             'list[the networks in range]' && ret=0 ;;
+        3) [[ $words[2] == (connect|join) ]] && _nzlauncher_networks && ret=0 ;;
+      esac ;;
+    tweak)
+      case $CURRENT in
+        2) _values 'setting' \
+             'power[power profile]' \
+             'dnd[do not disturb]' \
+             'nightlight[warm the screen]' \
+             'awake[keep the screen on or the machine running]' \
+             'normal[let go of keep awake, balanced power]' && ret=0 ;;
+        3) case $words[2] in
+             power) _values 'profile' power-saver balanced performance && ret=0 ;;
+             dnd) _values 'state' on off && ret=0 ;;
+             nightlight) _values 'kelvin' off 3500 4000 4500 5000 && ret=0 ;;
+             awake) _values 'hold' \
+                      'screen[no lock, no blanking]' \
+                      'sleep[never suspend, lid included]' \
+                      'all[both]' on off && ret=0 ;;
+           esac ;;
+        4) [[ $words[2] == awake && $words[3] == (screen|sleep|all) ]] &&
+             _values 'how long' 'on[until turned off]' 'off[let go]' \
+               '1800[30 minutes]' '3600[1 hour]' '7200[2 hours]' && ret=0 ;;
+      esac ;;
+    ws)
+      _values 'workspace' move 1 2 3 4 5 6 7 8 9 && ret=0 ;;
+    pick)
+      _arguments '-p[prompt]:prompt' '-i[accept typed text]' && ret=0 ;;
+    help)
+      (( CURRENT == 2 )) && _nzlauncher_commands && ret=0 ;;
+    completion)
+      (( CURRENT == 2 )) && _values 'shell' zsh bash fish && ret=0 ;;
+  esac
+  return ret
+}
+
+_nzlauncher "$@"
