@@ -129,6 +129,13 @@ func suggestions(q string) []action.Action {
 	return acts
 }
 
+func firstCanon(ws []intent.Word) string {
+	if len(ws) == 0 {
+		return ""
+	}
+	return ws[0].Canon
+}
+
 var reminderWords = map[string]bool{"remind": true, "reminder": true, "timer": true, "alarm": true, "remember": true}
 
 // levelWords finds volume or brightness in a sentence and returns the
@@ -367,6 +374,10 @@ func profileWords(ws []intent.Word) (string, bool) {
 
 func toggleIntent(state, domain string, actions []action.Action) []action.Action {
 	canon := intent.Content(intent.Words(domain))
+	// "awake off", "turn off no sleep": what is held, to let it go
+	if _, awake := awakeVerbs[firstCanon(canon)]; awake && state == "off" {
+		return providers.Awake("off")
+	}
 	if len(canon) == 1 && toggleDomains[canon[0].Canon] {
 		all := domainProvider(canon[0].Canon)("")
 		// already in that state: show what there is, its hint says so

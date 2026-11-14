@@ -254,6 +254,7 @@ func TestLoosePhrases(t *testing.T) {
 func TestSuggest(t *testing.T) {
 	cases := map[string]string{
 		"unlock":         "awake",
+		"unlok":          "awake",
 		"screen stay on": "awake",
 		"firefox":        "",
 		"keep notes":     "",

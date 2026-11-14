@@ -214,11 +214,17 @@ func looseWord(typed, want string) bool {
 	if len(want) < 4 || len(t) < 3 {
 		return false
 	}
-	if stem(t) == stem(want) {
+	root := stem(want)
+	if stem(t) == root {
 		return true
 	}
-	_, ok := closenessWith(t, want, Budget(len(want)), 1)
-	return ok
+	// a slip in the word or in its root: "unlok" is "unlock", not "unlocked"
+	for _, w := range []string{want, root} {
+		if _, ok := closenessWith(t, w, Budget(len(w)), 1); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // Words splits q into tokens with phrases, synonyms and typos resolved.
