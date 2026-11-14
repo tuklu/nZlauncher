@@ -14,7 +14,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -152,16 +151,8 @@ func respond(req Request) Response {
 		}
 		return Response{OK: true, Results: results(acts)}
 	case "awake":
-		// "off", or how long in seconds, 0 for until turned off
-		var err error
-		if req.Q == "off" {
-			err = tweaks.AllowSleep()
-		} else if secs, convErr := strconv.Atoi(req.Q); convErr == nil && secs >= 0 {
-			err = tweaks.KeepAwake(time.Duration(secs) * time.Second)
-		} else {
-			err = errors.New("awake takes off or a number of seconds")
-		}
-		if err != nil {
+		// "off", seconds for the screen hold, or "<screen|sleep|all>:<secs|off>"
+		if err := tweaks.ApplyAwake(req.Q); err != nil {
 			return Response{Error: err.Error()}
 		}
 		return Response{OK: true}

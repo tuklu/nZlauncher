@@ -11,15 +11,21 @@ import (
 	"github.com/tuklu/nZlauncher/internal/tweaks"
 )
 
-const tweakUsage = "usage: nzlauncher tweak power <profile> | dnd on|off | nightlight <kelvin>|off | awake on|off|<seconds>"
+const tweakUsage = "usage: nzlauncher tweak power <profile> | dnd on|off | nightlight <kelvin>|off" +
+	" | awake [screen|sleep|all] on|off|<seconds> | normal"
 
 // runTweak is what the tweak results run.
 func runTweak(args []string) error {
-	if len(args) != 2 {
-		return errors.New(tweakUsage)
-	}
 	settings, _ := config.LoadSettings()
 	platform.Configure(settings.Backends)
+	switch {
+	case len(args) == 1 && args[0] == "normal":
+		return backToNormal()
+	case len(args) == 3 && args[0] == "awake":
+		return askAwake(args[1] + ":" + awakeValue(args[2]))
+	case len(args) != 2:
+		return errors.New(tweakUsage)
+	}
 	what, value := args[0], args[1]
 	switch what {
 	case "power":
@@ -36,16 +42,34 @@ func runTweak(args []string) error {
 		}
 		return tweaks.SetNightlight(kelvin)
 	case "awake":
-		// the inhibit lives as long as whoever holds it, so the daemon does
-		q := value
-		if value == "on" {
-			q = "0"
-		}
-		resp, err := server.Ask(server.Request{Op: "awake", Q: q})
-		if err != nil && resp.Error == "" {
-			return errors.New("keep awake needs the daemon: nzlauncher serve")
-		}
-		return err
+		return askAwake(awakeValue(value))
 	}
 	return errors.New(tweakUsage)
+}
+
+func awakeValue(v string) string {
+	if v == "on" {
+		return "0"
+	}
+	return v
+}
+
+// askAwake hands a keep-awake request to the daemon: an inhibit lives as long
+// as whoever holds it.
+func askAwake(spec string) error {
+	resp, err := server.Ask(server.Request{Op: "awake", Q: spec})
+	if err != nil && resp.Error == "" {
+		return errors.New("keep awake needs the daemon: nzlauncher serve")
+	}
+	return err
+}
+
+// backToNormal lets go of every hold, then picks the balanced profile where
+// there are power profiles. Either half can be missing on a machine.
+func backToNormal() error {
+	awakeErr := askAwake("off")
+	if _, ok := tweaks.Power(); !ok {
+		return awakeErr
+	}
+	return errors.Join(awakeErr, tweaks.SetPower("balanced"))
 }

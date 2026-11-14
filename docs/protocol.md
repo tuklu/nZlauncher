@@ -25,10 +25,19 @@ any number of requests.
 - `q` is the text in the input box, empty for the first view.
 - `focused` is the class of the window the user came from. It feeds the
   context ranking; leave it out if you don't know it.
-- `awake` keeps the screen from locking and blanking: `q` is a number of
-  seconds, `0` for until turned off, or `off`. The daemon holds the
-  inhibit, because some services drop it when the caller disconnects.
-  `nzlauncher tweak awake` sends this.
+- `awake` takes or lets go of the keep-awake holds. `q` is one of:
+  - `off`: let go of every hold.
+  - a number of seconds: hold the screen for that long, `0` for until
+    turned off.
+  - `<hold>:<seconds>` or `<hold>:off`, where the hold is `screen` (an
+    org.freedesktop.ScreenSaver inhibit: no lock, no blanking), `sleep` (a
+    logind block inhibitor on sleep and the lid switch: the screen may lock,
+    the machine never suspends) or `all` (both).
+
+  The daemon holds the inhibitors, because some services drop them when the
+  caller disconnects and the logind one lives as long as its file
+  descriptor. `nzlauncher tweak awake` and `nzlauncher tweak normal` send
+  this.
 
 ## Responses
 
