@@ -66,7 +66,8 @@ var vocabulary = func() map[string]bool {
 		"today", "yesterday", "recent", "recently", "latest", "newest", "week", "month",
 		"year", "hours", "minutes", "older", "newer", "bigger", "larger", "smaller",
 		"since", "before", "after",
-		"dnd", "nightlight", "awake", "powermode", "performance", "balanced",
+		"dnd", "nightlight", "awake", "awakeall", "nosleep", "awakeoff", "normal",
+		"powermode", "performance", "balanced", "forever", "until", "till",
 	} {
 		v[w] = true
 	}
@@ -91,8 +92,57 @@ var phrases = []struct {
 	{[]string{"focus", "mode"}, "dnd"},
 	{[]string{"night", "light"}, "nightlight"},
 	{[]string{"night", "mode"}, "nightlight"},
+	// keep awake comes in three strengths: everything on (awakeall), only no
+	// sleep (nosleep: the screen may lock), only the screen (awake)
+	{[]string{"keep", "everything", "on"}, "awakeall"},
+	{[]string{"keep", "everything", "awake"}, "awakeall"},
+	{[]string{"stay", "fully", "awake"}, "awakeall"},
+	{[]string{"full", "awake"}, "awakeall"},
+	{[]string{"no", "lock", "no", "sleep"}, "awakeall"},
+	{[]string{"lock", "but", "don't", "sleep"}, "nosleep"},
+	{[]string{"lock", "but", "dont", "sleep"}, "nosleep"},
+	{[]string{"lock", "but", "no", "sleep"}, "nosleep"},
+	{[]string{"lock", "but", "never", "sleep"}, "nosleep"},
+	{[]string{"don't", "sleep"}, "nosleep"},
+	{[]string{"dont", "sleep"}, "nosleep"},
+	{[]string{"do", "not", "sleep"}, "nosleep"},
+	{[]string{"don't", "suspend"}, "nosleep"},
+	{[]string{"dont", "suspend"}, "nosleep"},
+	{[]string{"do", "not", "suspend"}, "nosleep"},
+	{[]string{"no", "sleep"}, "nosleep"},
+	{[]string{"no", "suspend"}, "nosleep"},
+	{[]string{"never", "sleep"}, "nosleep"},
+	{[]string{"prevent", "sleep"}, "nosleep"},
+	{[]string{"block", "sleep"}, "nosleep"},
+	{[]string{"keep", "running"}, "nosleep"},
+	{[]string{"keep", "the", "laptop", "on"}, "nosleep"},
+	{[]string{"keep", "the", "machine", "on"}, "nosleep"},
+	{[]string{"keep", "the", "computer", "on"}, "nosleep"},
+	{[]string{"keep", "laptop", "on"}, "nosleep"},
+	{[]string{"keep", "machine", "on"}, "nosleep"},
+	{[]string{"keep", "computer", "on"}, "nosleep"},
+	{[]string{"stay", "on"}, "nosleep"},
+	{[]string{"allow", "sleep"}, "awakeoff"},
+	{[]string{"allow", "lock"}, "awakeoff"},
+	{[]string{"let", "it", "sleep"}, "awakeoff"},
+	{[]string{"stop", "keeping", "awake"}, "awakeoff"},
+	{[]string{"back", "to", "normal"}, "normal"},
+	{[]string{"normal", "mode"}, "normal"},
 	{[]string{"keep", "the", "screen", "on"}, "awake"},
 	{[]string{"keep", "screen", "on"}, "awake"},
+	{[]string{"keep", "the", "screen", "unlocked"}, "awake"},
+	{[]string{"keep", "screen", "unlocked"}, "awake"},
+	{[]string{"keep", "the", "display", "on"}, "awake"},
+	{[]string{"keep", "display", "on"}, "awake"},
+	{[]string{"keep", "unlocked"}, "awake"},
+	{[]string{"stay", "unlocked"}, "awake"},
+	{[]string{"don't", "lock"}, "awake"},
+	{[]string{"dont", "lock"}, "awake"},
+	{[]string{"do", "not", "lock"}, "awake"},
+	{[]string{"no", "lock"}, "awake"},
+	{[]string{"never", "lock"}, "awake"},
+	{[]string{"don't", "blank"}, "awake"},
+	{[]string{"dont", "blank"}, "awake"},
 	{[]string{"keep", "awake"}, "awake"},
 	{[]string{"stay", "awake"}, "awake"},
 	{[]string{"power", "profile"}, "powermode"},
@@ -114,7 +164,8 @@ func joinPhrases(typed []string) []string {
 			}
 			match := true
 			for k, w := range p.words {
-				if strings.ToLower(typed[i+k]) != w {
+				// "don’t" from a phone keyboard is "don't"
+				if strings.ReplaceAll(strings.ToLower(typed[i+k]), "’", "'") != w {
 					match = false
 					break
 				}

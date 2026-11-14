@@ -106,12 +106,15 @@ The first word can send the query to one provider:
 | `transcode` | pick a media file, then a format and resolution |
 | `dnd` | do not disturb on or off (mako, swaync, dunst) |
 | `nightlight 3500`, `night` | warm the screen, or pick the temperature (hyprsunset) |
-| `awake 2h`, `caffeine` | keep the screen from locking and blanking, for a while or until turned off |
+| `awake`, `caffeine` | keep awake in three strengths, for a while or until turned off: screen on (no lock, no blanking), no sleep (may lock, never suspends, lid included), everything on. `awake sleep 2h`, `awake all until 18:30`, `awake screen forever`; `awake off` shows what is held and lets it go |
 | `profile`, `powermode` | power profiles, the current one marked (power-profiles-daemon, tlp-pd, tuned-ppd) |
 
 A tweak that can't work on this machine says why instead of doing
 nothing, for example power profiles with TLP but no `tlp-pd`. Keep awake
-is held by the daemon, so it needs `nzlauncher serve` running.
+is held by the daemon, so it needs `nzlauncher serve` running. Screen on
+needs something serving org.freedesktop.ScreenSaver (hypridle, KDE,
+GNOME); no sleep needs logind. **Back to Normal** lets go of every hold and
+picks the balanced power profile.
 
 If a full TUI for that area is installed (impala, bluetui, wiremix,
 btop, hyprmoncfg), the last entry opens it.
@@ -162,7 +165,7 @@ words sit one letter from `wifi` or `file`).
 | `find` | `find catalog` (file search) |
 | `search`, `google` | `search rust traits` |
 | `kill`, `stop`, `quit` | `kill chrome` |
-| system | `turn on do not disturb`, `night light off`, `night light 3500`, `keep awake for 2 hours`, `keep the screen on`, `performance mode`, `power saver` |
+| system | `turn on do not disturb`, `night light off`, `night light 3500`, `keep awake for 2 hours`, `keep the screen on`, `stay unlocked`, `don't sleep until 6pm`, `lock but don't sleep`, `keep the laptop on for 3h`, `keep everything on forever`, `allow sleep`, `back to normal`, `performance mode`, `power saver` |
 | `remind`, `timer` | `remind me in 20 minutes to stretch`, `remind me to call mum in 1h`, `timer 5m`, `set a timer for half an hour` |
 
 ### Files

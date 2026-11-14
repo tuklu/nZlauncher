@@ -50,11 +50,10 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 	if state, domain, ok := toggleWords(words); ok {
 		return toggleIntent(state, domain, actions)
 	}
-	// "keep awake for 2 hours", "awake 45m"
-	if verb == "awake" && len(rest) > 0 {
-		if d, n := intent.Duration(rest, 0); n > 0 {
-			return providers.Awake(d.String())
-		}
+	// "keep awake for 2 hours", "don't sleep until 6pm", "keep everything on
+	// forever", "allow sleep", "back to normal"
+	if mode, ok := awakeVerbs[verb]; ok && len(rest) > 0 {
+		return providers.Awake(mode + " " + intent.RawJoin(rest))
 	}
 	if len(words) == 1 && verb != "connect" && verb != "disconnect" {
 		// "do not disturb" is one word by now, but no prefix types it
@@ -107,7 +106,7 @@ func nlIntent(actions []action.Action, stats map[string]learn.Stat, ctx queryCon
 	case "kill":
 		return providers.Kill(arg)
 
-	case "nightlight", "powermode", "dnd", "awake":
+	case "nightlight", "powermode", "dnd", "awake", "nosleep", "awakeall", "awakeoff", "normal":
 		// "night light 3500", "power mode balanced"
 		return domainProvider(verb)(arg)
 	}
@@ -180,7 +179,11 @@ var levelFiller = map[string]bool{
 	"slightly": true, "tad": true, "notch": true, "more": true, "now": true,
 }
 
-var toggleDomains = map[string]bool{"wifi": true, "bluetooth": true, "dnd": true, "nightlight": true, "awake": true}
+var toggleDomains = map[string]bool{"wifi": true, "bluetooth": true, "dnd": true, "nightlight": true, "awake": true, "nosleep": true, "awakeall": true}
+
+// awakeVerbs are the keep-awake words and the mode each one hands on; the
+// provider reads the duration or clock time from what follows.
+var awakeVerbs = map[string]string{"awake": "", "nosleep": "sleep", "awakeall": "all", "awakeoff": "off"}
 
 // toggleWords finds a state and what it applies to in any order. The state
 // must open or close the sentence ("on" in the middle is usually a date).
@@ -314,6 +317,14 @@ func domainProvider(domain string) func(string) []action.Action {
 		return providers.Nightlight
 	case "awake":
 		return providers.Awake
+	case "nosleep":
+		return func(q string) []action.Action { return providers.Awake("sleep " + q) }
+	case "awakeall":
+		return func(q string) []action.Action { return providers.Awake("all " + q) }
+	case "awakeoff":
+		return func(string) []action.Action { return providers.Awake("off") }
+	case "normal":
+		return providers.Normal
 	case "powermode":
 		return providers.Power
 	}

@@ -17,16 +17,24 @@ func date(y int, m time.Month, d int) time.Time {
 
 func TestWordsResolveSynonymsAndTypos(t *testing.T) {
 	cases := map[string][]string{
-		"launch firefox":            {"open", "firefox"},
-		"disable bluetoth":          {"off", "bluetooth"},
-		"louder":                    {"volume", "up"},
-		"brigtness 40 percent":      {"brightness", "40", "%"},
-		"fire":                      {"fire"}, // short words are never corrected
-		"screnshots yesterdy":       {"screenshots", "yesterday"},
-		"turn on do not disturb":    {"turn", "on", "dnd"},
-		"keep the screen on for 2h": {"awake", "for", "2h"},
-		"Power Saver mode":          {"power-saver", "mode"},
-		"caffeine":                  {"awake"},
+		"launch firefox":             {"open", "firefox"},
+		"disable bluetoth":           {"off", "bluetooth"},
+		"louder":                     {"volume", "up"},
+		"brigtness 40 percent":       {"brightness", "40", "%"},
+		"fire":                       {"fire"}, // short words are never corrected
+		"screnshots yesterdy":        {"screenshots", "yesterday"},
+		"turn on do not disturb":     {"turn", "on", "dnd"},
+		"keep the screen on for 2h":  {"awake", "for", "2h"},
+		"Power Saver mode":           {"power-saver", "mode"},
+		"caffeine":                   {"awake"},
+		"don't sleep until 6pm":      {"nosleep", "until", "6pm"},
+		"lock but don’t sleep":       {"nosleep"},
+		"keep everything on forever": {"awakeall", "forever"},
+		"keep the laptop on for 3h":  {"nosleep", "for", "3h"},
+		"stay unlocked":              {"awake"},
+		"allow sleep":                {"awakeoff"},
+		"back to normal":             {"normal"},
+		"do not disturb":             {"dnd"},
 	}
 	for q, want := range cases {
 		var got []string
